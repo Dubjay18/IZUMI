@@ -1,0 +1,126 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SAVER
+  BORROWER
+  ADMIN
+}
+
+enum KycStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum KybStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum LoanStatus {
+  PENDING
+  AI_ASSESSED
+  APPROVED
+  DISBURSED
+  ACTIVE
+  REPAID
+  DEFAULTED
+  REJECTED
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WebhookStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  name           String
+  phoneNumber    String?
+  role           Role            @default(SAVER)
+  kycStatus      KycStatus       @default(UNVERIFIED)
+  bvn            String?
+  nin            String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  virtualAccount VirtualAccount?
+  borrowerProfile Borrower?
+}
+
+model Borrower {
+  id              String            @id @default(uuid())
+  userId          String            @unique
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName     String
+  cacRcNumber     String            @unique
+  businessTin     String            @unique
+  sector          String
+  kybStatus       KybStatus         @default(UNVERIFIED)
+  creditScore     Int?
+  creditGrade     String?
+  approvedLimit   Decimal?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  loanApplications LoanApplication[]
+  repaymentAccount VirtualAccount?
+}
+
+model LoanApplication {
+  id              String     @id @default(uuid())
+  borrowerId      String
+  borrower        Borrower   @relation(fields: [borrowerId], references: [id], onDelete: Cascade)
+  amountRequested Decimal
+  amountApproved  Decimal?
+  interestRate    Decimal?
+  termDays        Int
+  status          LoanStatus @default(PENDING)
+  creditScore     Int?
+  creditGrade     String?
+  aiAnalysis      Json?
+  contractBondId  String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model VirtualAccount {
+  id            String        @id @default(uuid())
+  userId        String?       @unique
+  user          User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  borrowerId    String?       @unique
+  borrower      Borrower?     @relation(fields: [borrowerId], references: [id], onDelete: Cascade)
+  accountNumber String        @unique
+  bankName      String
+  accountName   String
+  reference     String        @unique
+  status        AccountStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model WebhookLog {
+  id        String        @id @default(uuid())
+  provider  String
+  eventType String
+  payload   Json
+  status    WebhookStatus @default(PENDING)
+  error     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
