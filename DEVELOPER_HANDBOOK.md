@@ -12,8 +12,8 @@ Welcome to the **Izumi** backend. This handbook is designed for frontend and int
 
 ### The Web2.5 Hybrid Solution
 Izumi bridges this gap by abstracting complex blockchain interactions behind familiar Web2 interfaces (Naira virtual bank accounts and mobile payments). 
-* **The Saver** deposits Naira (NGN). Under the hood, this capital is swapped for stable USD on-chain, and deposited into **Quest V1 Yield Vaults**.
-* **The Borrower** gets access to low-interest working capital. Under the hood, this loan is backed by a **Quest V1 Credit Bond**. Repayments are automated at the source by sweeping a percentage of their daily POS machine transactions.
+* **The Saver** deposits Naira (NGN). Under the hood, this capital is swapped for stable USD on-chain, and deposited into **Yield Vaults**.
+* **The Borrower** gets access to low-interest working capital. Under the hood, this loan is backed by a **Credit Bond**. Repayments are automated at the source by sweeping a percentage of their daily POS machine transactions.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -24,11 +24,11 @@ Izumi bridges this gap by abstracting complex blockchain interactions behind fam
 │                                              │                         │
 │                                       (Swaps NGN/USDC)                 │
 │                                              ▼                         │
-│   [Quest Yield Vault] ◄─── (USDC) ◄─── [Saver Wallet]                  │
+│   [Yield Vault] ◄─── (USDC) ◄─── [Saver Wallet]                  │
 │            │                                                           │
 │     (Earns Yield)                                                      │
 │            ▼                                                           │
-│   [Quest Bond Manager] ──► (Disburses) ──► [Borrower SME (NGN)]        │
+│   [Bond Manager] ──► (Disburses) ──► [Borrower SME (NGN)]        │
 │            ▲                                     │                     │
 │            │                                (POS Sales)                │
 │            │                                     ▼                     │
@@ -59,7 +59,7 @@ The project isolates its logic into clean, single-responsibility services under 
 * **How**: 
   * Uses **Viem** for ultra-fast JSON-RPC interactions with our EVM chains.
   * Dynamically derives child wallets for savers and borrowers using a single master seed and standard HD derivation paths (`m/44'/60'/0'/0/index`).
-  * Manages gas sponsorships automatically (deposits ETH and USDC tokens to borrower accounts to establish the Quest collateral backing).
+  * Manages gas sponsorships automatically (deposits ETH and USDC tokens to borrower accounts to establish the collateral backing).
   * **Concurrency Protection**: Implements a TypeScript **Mutex lock** to prevent transaction nonce collisions when multiple deposits or webhooks fire simultaneously.
 
 ---
@@ -141,7 +141,7 @@ sequenceDiagram
     API->>Saver: Return Account Number & Bank Name
     Saver->>API: Transfers Naira (NGN 150k) to Account
     Note over API: Nomba triggers Hook: deposit.success
-    API->>Web3: deposit() USDC to QuestToken Contract
+    API->>Web3: deposit() USDC to Token Contract
     API->>DB: Create COMPLETED Ledger Entry (DEPOSIT, $100 USD)
 ```
 
