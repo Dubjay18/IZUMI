@@ -117,7 +117,7 @@ We use Prisma with a double-entry accounting ledger pattern to track assets safe
 A ledger tracks cashflows via state-machine entries:
 * **DEPOSIT**: Saver transfers NGN. The status moves from `PENDING` -> `COMPLETED` once the stablecoin is locked on-chain.
 * **WITHDRAWAL**: Saver requests local cash. We burn/withdraw QTK on-chain, disburse Naira via Nomba, and mark the ledger entry as `COMPLETED`.
-* **YIELD**: Calculated interest earned from Quest vaults periodically credited to the saver's ledger.
+* **YIELD**: Calculated interest earned from Yield vaults periodically credited to the saver's ledger.
 
 ---
 
@@ -164,7 +164,7 @@ sequenceDiagram
     API-->>Borrower: Return approved loan terms
     Borrower->>API: POST /loans/:id/accept
     API->>Web3: setupBorrowerForBond() (Fund gas + backer collateral)
-    API->>Web3: createQuestBond() (Lock USDC to Quest)
+    API->>Web3: createQuestBond() (Lock USDC to Vault)
     API->>API: nombaService.disbursePayout() (Send NGN to SME bank account)
     API->>DB: Set Loan status to ACTIVE
 ```
