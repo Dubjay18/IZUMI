@@ -62,6 +62,8 @@ model User {
   updatedAt      DateTime        @updatedAt
   virtualAccount VirtualAccount?
   borrowerProfile Borrower?
+  wallets        Wallet[]
+  ledger         Ledger[]
 }
 
 model Borrower {
@@ -95,6 +97,7 @@ model LoanApplication {
   creditGrade     String?
   aiAnalysis      Json?
   contractBondId  String?
+  amountRepaid    Decimal    @default(0)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }
@@ -123,4 +126,35 @@ model WebhookLog {
   error     String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+}
+
+model Wallet {
+  id              String   @id @default(uuid())
+  userId          String
+  address         String   @unique
+  derivationIndex Int      @unique
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Ledger {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    String
+  type      String   // 'DEPOSIT', 'WITHDRAWAL', 'YIELD'
+  status    String   // 'PENDING', 'COMPLETED', 'FAILED'
+  txHash    String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  txHash    String?  @unique
+  type      String   // 'DEPOSIT', 'WITHDRAWAL', 'BOND', 'SWEEP'
+  status    String   // 'PENDING', 'MINED', 'FAILED'
+  toAddress String
+  amount    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
