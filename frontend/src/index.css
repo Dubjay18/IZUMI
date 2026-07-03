@@ -1,19 +1,113 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-}
+@theme {
+  --font-display: "Playfair Display", serif;
+  --font-body: "Hanken Grotesk", sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ffffff;
-  }
+  --color-primary: #001512;
+  --color-primary-container: #062c26;
+  --color-primary-fixed: #c5eae1;
+  --color-primary-fixed-dim: #a9cec5;
+  --color-on-primary: #ffffff;
+  --color-on-primary-fixed: #00201b;
+  --color-on-primary-fixed-variant: #2b4d46;
+  --color-on-primary-container: #71958c;
+
+  --color-secondary: #735c00;
+  --color-secondary-container: #fed65b;
+  --color-secondary-fixed: #ffe088;
+  --color-secondary-fixed-dim: #e9c349;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-fixed: #241a00;
+  --color-on-secondary-fixed-variant: #574500;
+  --color-on-secondary-container: #745c00;
+
+  --color-surface: #fef8f3;
+  --color-surface-variant: #e7e1dd;
+  --color-surface-container: #f3ede8;
+  --color-surface-container-low: #f8f3ed;
+  --color-surface-container-high: #ede7e2;
+  --color-surface-container-highest: #e7e1dd;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-bright: #fef8f3;
+  --color-surface-dim: #ded9d4;
+  --color-on-surface: #1d1b19;
+  --color-on-surface-variant: #414846;
+
+  --color-background: #fef8f3;
+  --color-on-background: #1d1b19;
+  --color-outline: #717976;
+  --color-outline-variant: #c1c8c5;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --color-inverse-surface: #32302d;
+  --color-inverse-on-surface: #f6f0eb;
+  --color-inverse-primary: #a9cec5;
+
+  --color-tertiary: #121210;
+  --color-tertiary-container: #262725;
+  --color-tertiary-fixed: #e4e2de;
+  --color-tertiary-fixed-dim: #c8c6c3;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-fixed: #1b1c1a;
+  --color-on-tertiary-fixed-variant: #474744;
+  --color-on-tertiary-container: #8e8e8b;
 }
 
 body {
   margin: 0;
-  background: var(--background);
-  color: var(--foreground);
+  background-color: #fef8f3;
+  background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png");
+  background-repeat: repeat;
+  color: #1d1b19;
+  overflow-x: hidden;
+  font-family: "Hanken Grotesk", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.glass-panel {
+  background: rgba(254, 248, 243, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(115, 92, 0, 0.1);
+}
+
+.grain-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.8s ease-out;
+}
+
+.scroll-reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-8px);
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 24;
 }
