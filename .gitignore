@@ -27,3 +27,9 @@ yarn-error.log*
 *.sln
 *.sw?
 .DS_Store
+
+# Foundry outputs
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
