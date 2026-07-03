@@ -8,6 +8,10 @@ import { Ecosystem } from "@/components/sections/Ecosystem";
 import { AdvisoryCTA } from "@/components/sections/AdvisoryCTA";
 import { Footer } from "@/components/layout/Footer";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { AmortizationPage } from "@/pages/AmortizationPage";
+import { DepositPage } from "@/pages/DepositPage";
+import { ZKCompliancePage } from "@/pages/ZKCompliancePage";
+import { WithdrawalPage } from "@/pages/WithdrawalPage";
 
 function LandingPage() {
   useScrollReveal();
@@ -33,6 +37,10 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard/deposit" element={<DepositPage />} />
+        <Route path="/dashboard/amortization" element={<AmortizationPage />} />
+        <Route path="/compliance" element={<ZKCompliancePage />} />
+        <Route path="/withdrawal" element={<WithdrawalPage />} />
       </Routes>
     </BrowserRouter>
   );
