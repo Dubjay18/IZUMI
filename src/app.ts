@@ -4,12 +4,15 @@ import dotenv from 'dotenv';
 import { aiService } from './services/ai.service.js';
 import { borrowerRoutes } from './routes/borrower.routes.js';
 import { loanRoutes } from './routes/loan.routes.js';
+import { saverRoutes } from './routes/saver.routes.js';
+import { webhookRoutes } from './routes/webhook.routes.js';
 
 dotenv.config();
 
 export const app = fastify({
   logger: true,
 });
+
 
 // Register CORS
 await app.register(cors, {
@@ -24,6 +27,8 @@ app.get('/health', async () => {
 // Register routes
 await app.register(borrowerRoutes);
 await app.register(loanRoutes);
+await app.register(saverRoutes);
+await app.register(webhookRoutes);
 
 // Test Credit Scoring Endpoint
 app.post('/test-ai', async (request, reply) => {
