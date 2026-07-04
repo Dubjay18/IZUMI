@@ -47,8 +47,8 @@ export async function webhookRoutes(app: FastifyInstance) {
       const signingKey = process.env.NOMBA_SIGNING_KEY || 'NombaHackathon2026';
 
       if (!signature) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn('WebhookRoutes: Bypassing signature verification due to missing nomba-signature header (non-production).');
+        if (process.env.NODE_ENV !== 'production' || process.env.NOMBA_MOCK === 'true' || process.env.ZK_BYPASS_VERIFICATION === 'true') {
+          console.warn('WebhookRoutes: Bypassing signature verification due to missing nomba-signature header (non-production/mock).');
         } else {
           return reply.code(401).send({ error: 'Unauthorized: Missing nomba-signature header' });
         }
