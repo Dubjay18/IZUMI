@@ -72,12 +72,20 @@ export class BlockchainService {
   public publicClient: any;
   public txMutex: Mutex;
   public userTxMutex: KeyedMutex;
+  public isMock: boolean;
   private chain: any;
   private rpcUrl: string;
 
   constructor() {
     this.rpcUrl = process.env.RPC_URL || 'http://127.0.0.1:8545';
     this.chain = process.env.NODE_ENV === 'production' ? baseSepolia : foundry;
+    
+    const isLocalRpc = this.rpcUrl.includes('127.0.0.1') || this.rpcUrl.includes('localhost');
+    const inCloud = process.env.RAILWAY_ENVIRONMENT !== undefined || process.env.NODE_ENV === 'production';
+    this.isMock = process.env.NOMBA_MOCK === 'true' || 
+                  process.env.ZK_BYPASS_VERIFICATION === 'true' || 
+                  (isLocalRpc && inCloud);
+
     this.txMutex = new Mutex();
     this.userTxMutex = new KeyedMutex();
 
@@ -91,7 +99,7 @@ export class BlockchainService {
    * Helper to write a transaction on behalf of a user using their derivation index.
    */
   async executeUserTx(derivationIndex: number, contractAddress: `0x${string}`, abi: any, functionName: string, args: any[]) {
-    if (process.env.NOMBA_MOCK === 'true' || process.env.ZK_BYPASS_VERIFICATION === 'true') {
+    if (this.isMock) {
       const mockHash = `0x${crypto.randomBytes(32).toString('hex')}`;
       console.log(`BlockchainService [MOCK]: executeUserTx simulated hash: ${mockHash}`);
       return mockHash as `0x${string}`;
@@ -148,7 +156,7 @@ export class BlockchainService {
    * Utilizes a mutex to serialize transactions and avoid nonce collisions.
    */
   async executeHotWalletTx(contractAddress: `0x${string}`, abi: any, functionName: string, args: any[]) {
-    if (process.env.NOMBA_MOCK === 'true' || process.env.ZK_BYPASS_VERIFICATION === 'true') {
+    if (this.isMock) {
       const mockHash = `0x${crypto.randomBytes(32).toString('hex')}`;
       console.log(`BlockchainService [MOCK]: executeHotWalletTx simulated hash: ${mockHash}`);
       return mockHash as `0x${string}`;
@@ -253,7 +261,7 @@ export class BlockchainService {
    * and execute the ERC20 approve transaction from their derived wallet allowing BondManager to pull protocol tokens.
    */
   async setupBorrowerForBond(derivationIndex: number, protocolTokenAddress: `0x${string}`, tokenAmount: bigint) {
-    if (process.env.NOMBA_MOCK === 'true' || process.env.ZK_BYPASS_VERIFICATION === 'true') {
+    if (this.isMock) {
       console.log(`BlockchainService [MOCK]: setupBorrowerForBond simulated setup for index ${derivationIndex}`);
       return { ethHash: '0xmocketh', tokenHash: '0xmocktoken', approveHash: '0xmockapprove' };
     }
