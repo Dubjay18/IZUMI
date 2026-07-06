@@ -13,12 +13,11 @@ function formatDate(date: Date) {
 export function LoanAgreementPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { state } = useLocation() as {
-    state: {
-      creditAnalysis: CreditAnalysis;
-      amountNGN: string;
-      termDays: number;
-    } | null;
+  const location = useLocation();
+  const state = location.state as {
+    creditAnalysis: CreditAnalysis;
+    amountNGN: string;
+    termDays: number;
   } | null;
 
   const sigRef = useRef<SignaturePadHandle>(null);

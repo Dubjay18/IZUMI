@@ -1,10 +1,17 @@
-const TABS = [
+interface TabItem {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: string;
+  readonly danger?: boolean;
+}
+
+const TABS: readonly TabItem[] = [
   { id: "personal", label: "Personal Information", icon: "person" },
   { id: "2fa", label: "Two-Factor Authentication", icon: "verified_user" },
   { id: "sessions", label: "Session History", icon: "history" },
   { id: "api", label: "API Access", icon: "key" },
   { id: "deactivate", label: "Deactivate Account", icon: "logout", danger: true },
-] as const;
+];
 
 type SettingsSidebarProps = {
   activeTab: string;
