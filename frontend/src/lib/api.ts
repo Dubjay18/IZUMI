@@ -88,6 +88,20 @@ export const saverApi = {
         }
       }),
     }),
+
+  createKycSession: () =>
+    request<{ token: string }>("/savers/sessions/handshake", {
+      method: "POST"
+    }),
+
+  pollKycSession: (token: string) =>
+    request<{ status: 'PENDING' | 'VERIFIED' | 'FAILED', userId: string | null }>(`/savers/sessions/${token}`),
+
+  verifyKycSession: (token: string, userId: string) =>
+    request<{ success: boolean; message: string }>(`/savers/sessions/${token}/verify`, {
+      method: "POST",
+      body: JSON.stringify({ userId })
+    }),
 };
 
 // ─── Borrower endpoints ───────────────────────────────────────────────────────
@@ -109,6 +123,18 @@ export const borrowerApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  uploadDocument: (borrowerId: string, body: { type: string, fileName: string, fileSize: number, base64Data: string }) =>
+    request<{ message: string; documentId: string }>(`/borrowers/${borrowerId}/documents`, {
+      method: "POST",
+      body: JSON.stringify(body)
+    }),
+
+  getDocuments: (borrowerId: string) =>
+    request<{ id: string; type: string; fileName: string; fileSize: number; uploadedAt: string }[]>(`/borrowers/${borrowerId}/documents`),
+
+  getDocumentDetails: (docId: string) =>
+    request<{ id: string; type: string; fileName: string; fileSize: number; base64Data: string; uploadedAt: string }>(`/borrowers/documents/${docId}`),
 };
 
 // ─── Loan endpoints ───────────────────────────────────────────────────────────

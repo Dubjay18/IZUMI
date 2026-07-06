@@ -55,6 +55,7 @@ const MOBILE_TABS = [
 export function UnderwriterAdminPage() {
   const [score, setScore] = useState(0);
   const targetScore = 845;
+  const [previewDoc, setPreviewDoc] = useState<{ name: string; icon?: string; content?: string } | null>(null);
 
   useEffect(() => {
     const duration = 2000;
@@ -180,6 +181,11 @@ export function UnderwriterAdminPage() {
                 {KYC_DOCUMENTS.map((doc) => (
                   <div
                     key={doc.name}
+                    onClick={() => setPreviewDoc({
+                      name: doc.name,
+                      icon: doc.icon,
+                      content: doc.name.includes("Passport") ? "passport" : doc.name.includes("Residence") ? "residence" : "cac"
+                    })}
                     className="bg-surface/70 backdrop-blur-sm border border-outline-variant/20 p-3 rounded-xl flex items-center justify-between group hover:border-primary transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
@@ -539,6 +545,140 @@ export function UnderwriterAdminPage() {
           </div>
         ))}
       </nav>
+
+      {/* ── Document Preview Modal ───────────────────────── */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-surface-container border border-outline-variant max-w-xl w-full rounded-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 bg-surface-container-high border-b border-outline-variant/30">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary">
+                  {previewDoc.icon || "description"}
+                </span>
+                <span className="font-body font-bold text-on-surface">{previewDoc.name}</span>
+              </div>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="p-1 rounded-full hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Modal Body: Document Preview Render */}
+            <div className="p-8 flex items-center justify-center bg-surface/50 min-h-[320px]">
+              {previewDoc.content === "passport" && (
+                <div className="w-full bg-[#1b222c] text-[#dcdde1] border border-outline-variant/40 rounded-xl p-6 font-mono text-xs shadow-inner relative overflow-hidden">
+                  <div className="absolute top-4 right-4 text-warning opacity-35">
+                    <span className="material-symbols-outlined text-[64px]">public</span>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="w-24 h-28 bg-surface-container-high border border-outline-variant/40 rounded-lg overflow-hidden shrink-0">
+                      <img src={AVATAR_SRC} alt="Passport photo" className="w-full h-full object-cover grayscale" />
+                    </div>
+                    <div className="space-y-2 flex-1">
+                      <div className="border-b border-[#353b48] pb-1.5 mb-1.5">
+                        <span className="text-[10px] text-outline block uppercase tracking-widest">Surname / Name</span>
+                        <span className="font-bold text-sm text-primary">VANCE / ALEXANDER</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-[10px] text-outline block uppercase">Nationality</span>
+                          <span className="font-semibold text-white">SWITZERLAND</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-outline block uppercase">Passport No</span>
+                          <span className="font-semibold text-warning">P-SW482910</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-outline block uppercase">Date of Birth</span>
+                          <span className="font-semibold text-white">12 APR 1994</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-outline block uppercase">Sex</span>
+                          <span className="font-semibold text-white">M</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-dashed border-[#353b48] text-center text-[10px] text-outline tracking-[0.2em] font-bold">
+                    P&lt;CHEVERT&lt;&lt;ALEXANDER&lt;VANCE&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+                  </div>
+                </div>
+              )}
+
+              {previewDoc.content === "residence" && (
+                <div className="w-full bg-white text-on-surface border border-outline-variant/35 rounded-xl p-8 shadow-inner font-body text-xs relative">
+                  <div className="absolute top-4 right-4 flex flex-col items-center border border-success/30 p-2 rounded rotate-12 text-success uppercase text-[8px] font-bold">
+                    <span className="material-symbols-outlined text-[18px] mb-0.5">verified</span>
+                    Verified Address
+                  </div>
+                  <div className="border-b border-outline-variant pb-4 mb-4">
+                    <h4 className="font-bold text-sm text-primary uppercase tracking-wider">SWISSCOM UTILITY INVOICE</h4>
+                    <p className="text-on-surface-variant text-[10px] mt-0.5">Reference: CH-7482910-B</p>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-[10px] text-on-surface-variant block uppercase tracking-wider">Billed To</span>
+                      <p className="font-bold text-on-surface mt-0.5">Alexander Vance</p>
+                      <p className="text-on-surface-variant font-medium mt-0.5">Bahnhofstrasse 45, 8001 Zürich, Switzerland</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <span className="text-[10px] text-on-surface-variant block uppercase">Billing Period</span>
+                        <p className="font-semibold text-on-surface">Jun 1 - Jun 30, 2026</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-on-surface-variant block uppercase">Statement Status</span>
+                        <p className="font-bold text-success">PAID IN FULL</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {previewDoc.content === "cac" && (
+                <div className="w-full bg-[#fafbfc] text-[#2c3e50] border-4 border-[#27ae60]/40 rounded-xl p-8 shadow-2xl font-body text-xs relative text-center space-y-6">
+                  {/* Decorative CAC Seal */}
+                  <div className="w-20 h-20 rounded-full border-4 border-[#27ae60] mx-auto flex items-center justify-center bg-[#27ae60]/5 text-[#27ae60] shrink-0">
+                    <span className="material-symbols-outlined text-[40px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      corporate_fare
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <h4 className="font-display text-base font-bold text-[#27ae60] uppercase tracking-wider">
+                      CORPORATE AFFAIRS COMMISSION
+                    </h4>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
+                      FEDERAL REPUBLIC OF NIGERIA
+                    </p>
+                  </div>
+                  <div className="border-t border-b border-outline-variant/30 py-4 my-2 text-left space-y-3">
+                    <div>
+                      <span className="text-[9px] text-on-surface-variant block uppercase font-bold tracking-wider">Company Name</span>
+                      <p className="font-bold text-sm text-[#2c3e50] mt-0.5">VANCE GLOBAL SOLUTIONS LTD</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[9px] text-on-surface-variant block uppercase font-bold">Registration No (RC)</span>
+                        <p className="font-bold text-on-surface">RC-19482710</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-on-surface-variant block uppercase font-bold">Incorporation Date</span>
+                        <p className="font-bold text-on-surface">15 OCT 2023</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[9px] italic text-on-surface-variant leading-relaxed">
+                    This certifies that this corporate entity is registered and compliant under the Companies and Allied Matters Act.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

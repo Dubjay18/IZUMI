@@ -9,6 +9,7 @@ const LOGO_SRC =
   "https://lh3.googleusercontent.com/aida/AP1WRLsnnW5QHpNXUie_IG7utyOUeF6-kEGW_OED3NyOFV18kvh3PqIAwmKCg3Ywu9qK_TtlUGQfTjLcobo_pBkXQ_wVpmaQxU-LpzybVcr82RaEcluvTjx8TfnRHxQBD7WS_D5o7MJsE49OXm61IxjiB_8w3us59IEAltIpnAKgfxvc1Nsd-Kc6zNH5u63pg7skERonRnSCXj_2O5VfeBNRy5ena82kmxamqX1xNcHaTU-Pmgl3KFKHu0NdgxM";
 
 type KycMethod = "bvn" | "zk" | null;
+type KycSubStep = "method" | "liveness";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -17,7 +18,9 @@ export function OnboardingPage() {
 
   const [step, setStep] = useState<StepKey>("identity");
   const [kycMethod, setKycMethod] = useState<KycMethod>(null);
+  const [kycSubStep, setKycSubStep] = useState<KycSubStep>("method");
 
+  // Personal Info
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,13 +28,21 @@ export function OnboardingPage() {
   const [country, setCountry] = useState("Switzerland");
   const [consent, setConsent] = useState(false);
 
+  // KYC inputs
   const [bvn, setBvn] = useState("");
   const [nin, setNin] = useState("");
+
+  // Handshake and Polling states
+  const [kycToken, setKycToken] = useState<string | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState("");
 
+  const pollIntervalRef = useRef<any>(null);
+
+  // Mouse move effect for Card perspective
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!cardRef.current) return;
@@ -45,6 +56,13 @@ export function OnboardingPage() {
     return () => window.removeEventListener("mousemove", onMouseMove);
   }, []);
 
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
+
   function handleIdentityNext(e: React.FormEvent) {
     e.preventDefault();
     if (!firstName.trim() || !lastName.trim() || !email.trim() || !consent) return;
@@ -52,26 +70,75 @@ export function OnboardingPage() {
     setError(null);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Generate compliance session and start polling
+  async function handleProceedToLiveness(e: React.FormEvent) {
     e.preventDefault();
+    if (!kycMethod) return;
+
+    if (bvn.length !== 11 || !/^\d+$/.test(bvn)) {
+      setError("BVN must be exactly 11 digits.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+    try {
+      // 1. Create a session handshake token on the backend
+      const res = await saverApi.createKycSession();
+      setKycToken(res.token);
+      setKycSubStep("liveness");
+      setIsPolling(true);
 
+      // 2. Poll status every 2 seconds
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const pollRes = await saverApi.pollKycSession(res.token);
+          if (pollRes.status === "VERIFIED") {
+            clearInterval(pollIntervalRef.current);
+            setIsPolling(false);
+            // Execute the submit flow automatically once verified!
+            await executeSaverOnboarding();
+          }
+        } catch (pollErr) {
+          console.error("KYC Polling Error:", pollErr);
+        }
+      }, 2000);
+
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Handle local desktop scanning simulation (no phone required for testing)
+  const handleLocalDesktopScan = async () => {
+    if (!kycToken) return;
+    setLoading(true);
+    try {
+      // Simulate scanning animation
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Mark token as verified directly
+      await saverApi.verifyKycSession(kycToken, "");
+    } catch (err) {
+      setError("Local verification failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  async function executeSaverOnboarding() {
+    setLoading(true);
+    setError(null);
     const fullName = `${firstName} ${lastName}`.trim();
 
     try {
       if (kycMethod === "bvn") {
-        if (bvn.length !== 11 || !/^\d+$/.test(bvn)) {
-          throw new Error("BVN must be exactly 11 digits.");
-        }
         const res = await saverApi.onboard({ name: fullName, email, bvn, nin: nin || undefined });
         loginAsSaver(res.userId, fullName, email, res.walletAddress, res.virtualAccount);
         setWalletAddress(res.walletAddress);
         setStep("success");
       } else if (kycMethod === "zk") {
-        if (bvn.length !== 11 || !/^\d+$/.test(bvn)) {
-          throw new Error("BVN is required to generate a ZK proof (it never leaves your device).");
-        }
         const { address: targetAddress } = await saverApi.getNextAddress();
         const proof = await generateKycProof(bvn, targetAddress);
         const res = await saverApi.onboard({ name: fullName, email, zkProof: proof });
@@ -85,6 +152,9 @@ export function OnboardingPage() {
       setLoading(false);
     }
   }
+
+  // Get QR Link for mobile browser hand-off
+  const mobileKycLink = `${window.location.origin}/onboard/mobile-kyc?token=${kycToken}`;
 
   return (
     <div className="min-h-screen bg-background relative overflow-x-hidden">
@@ -277,130 +347,222 @@ export function OnboardingPage() {
 
             {/* Step 2: KYC */}
             {step === "kyc" && (
-              <form onSubmit={handleSubmit} className="space-y-10">
-                <header className="mb-2">
-                  <h3 className="font-headline-md text-[22px] text-primary">Verify Identity</h3>
-                  <p className="text-on-surface-variant font-body-md mt-1">
-                    Choose how you&apos;d like to complete KYC.
-                  </p>
-                </header>
+              <div>
+                {kycSubStep === "method" ? (
+                  <form onSubmit={handleProceedToLiveness} className="space-y-10">
+                    <header className="mb-2">
+                      <h3 className="font-headline-md text-[22px] text-primary">Verify Identity</h3>
+                      <p className="text-on-surface-variant font-body-md mt-1">
+                        Choose how you&apos;d like to complete KYC.
+                      </p>
+                    </header>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setKycMethod("bvn")}
-                    className={`p-6 rounded-xl border-2 text-left transition-all ${
-                      kycMethod === "bvn"
-                        ? "border-primary bg-primary/5"
-                        : "border-outline-variant hover:border-outline"
-                    }`}
-                  >
-                    <span
-                      className="material-symbols-outlined text-primary block mb-3 text-2xl"
-                      style={{ fontVariationSettings: kycMethod === "bvn" ? "'FILL' 1" : "'FILL' 0" }}
-                    >
-                      badge
-                    </span>
-                    <p className="font-body font-bold text-[14px] text-on-surface">BVN</p>
-                    <p className="font-body text-[12px] text-on-surface-variant mt-0.5">Standard KYC</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setKycMethod("zk")}
-                    className={`p-6 rounded-xl border-2 text-left transition-all ${
-                      kycMethod === "zk"
-                        ? "border-primary bg-primary/5"
-                        : "border-outline-variant hover:border-outline"
-                    }`}
-                  >
-                    <span
-                      className="material-symbols-outlined text-primary block mb-3 text-2xl"
-                      style={{ fontVariationSettings: kycMethod === "zk" ? "'FILL' 1" : "'FILL' 0" }}
-                    >
-                      shield_lock
-                    </span>
-                    <p className="font-body font-bold text-[14px] text-on-surface">Privacy Shield</p>
-                    <p className="font-body text-[12px] text-on-surface-variant mt-0.5">ZK-SNARK proof</p>
-                  </button>
-                </div>
-
-                {kycMethod && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="relative">
-                      <label className="font-subhead-caps text-subhead-caps text-on-surface-variant block mb-1">
-                        {kycMethod === "zk" ? "BVN (stays on your device)" : "BVN"}
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={11}
-                        value={bvn}
-                        onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
-                        placeholder="22234567890"
-                        className="w-full bg-transparent border-t-0 border-l-0 border-r-0 border-b border-outline-variant py-3 px-0 font-body-lg text-primary focus:border-secondary transition-colors outline-none tracking-widest"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setKycMethod("bvn")}
+                        className={`p-6 rounded-xl border-2 text-left transition-all ${
+                          kycMethod === "bvn"
+                            ? "border-primary bg-primary/5"
+                            : "border-outline-variant hover:border-outline"
+                        }`}
+                      >
+                        <span
+                          className="material-symbols-outlined text-primary block mb-3 text-2xl"
+                          style={{ fontVariationSettings: kycMethod === "bvn" ? "'FILL' 1" : "'FILL' 0" }}
+                        >
+                          badge
+                        </span>
+                        <p className="font-body font-bold text-[14px] text-on-surface">BVN</p>
+                        <p className="font-body text-[12px] text-on-surface-variant mt-0.5">Standard KYC</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKycMethod("zk")}
+                        className={`p-6 rounded-xl border-2 text-left transition-all ${
+                          kycMethod === "zk"
+                            ? "border-primary bg-primary/5"
+                            : "border-outline-variant hover:border-outline"
+                        }`}
+                      >
+                        <span
+                          className="material-symbols-outlined text-primary block mb-3 text-2xl"
+                          style={{ fontVariationSettings: kycMethod === "zk" ? "'FILL' 1" : "'FILL' 0" }}
+                        >
+                          shield_lock
+                        </span>
+                        <p className="font-body font-bold text-[14px] text-on-surface">Privacy Shield</p>
+                        <p className="font-body text-[12px] text-on-surface-variant mt-0.5">ZK-SNARK proof</p>
+                      </button>
                     </div>
-                    {kycMethod === "bvn" && (
-                      <div className="relative">
-                        <label className="font-subhead-caps text-subhead-caps text-on-surface-variant block mb-1">
-                          NIN (optional)
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={11}
-                          value={nin}
-                          onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
-                          placeholder="12345678901"
-                          className="w-full bg-transparent border-t-0 border-l-0 border-r-0 border-b border-outline-variant py-3 px-0 font-body-lg text-primary focus:border-secondary transition-colors outline-none tracking-widest"
-                        />
+
+                    {kycMethod && (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="relative">
+                          <label className="font-subhead-caps text-subhead-caps text-on-surface-variant block mb-1">
+                            {kycMethod === "zk" ? "BVN (stays on your device)" : "BVN"}
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={11}
+                            value={bvn}
+                            onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
+                            placeholder="22234567890"
+                            required
+                            className="w-full bg-transparent border-t-0 border-l-0 border-r-0 border-b border-outline-variant py-3 px-0 font-body-lg text-primary focus:border-secondary transition-colors outline-none tracking-widest"
+                          />
+                        </div>
+                        {kycMethod === "bvn" && (
+                          <div className="relative">
+                            <label className="font-subhead-caps text-subhead-caps text-on-surface-variant block mb-1">
+                              NIN (optional)
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={11}
+                              value={nin}
+                              onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
+                              placeholder="12345678901"
+                              className="w-full bg-transparent border-t-0 border-l-0 border-r-0 border-b border-outline-variant py-3 px-0 font-body-lg text-primary focus:border-secondary transition-colors outline-none tracking-widest"
+                            />
+                          </div>
+                        )}
+                        {kycMethod === "zk" && (
+                          <div className="flex items-start gap-2 p-4 bg-secondary-fixed/10 rounded-lg border border-secondary/20">
+                            <span className="material-symbols-outlined text-secondary text-[18px] mt-0.5 shrink-0">lock</span>
+                            <p className="text-[12px] font-body text-on-surface-variant leading-relaxed">
+                              Your BVN is used locally to generate a cryptographic proof. It is <strong>never sent</strong> to our servers.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
-                    {kycMethod === "zk" && (
-                      <div className="flex items-start gap-2 p-4 bg-secondary-fixed/10 rounded-lg border border-secondary/20">
-                        <span className="material-symbols-outlined text-secondary text-[18px] mt-0.5 shrink-0">lock</span>
-                        <p className="text-[12px] font-body text-on-surface-variant leading-relaxed">
-                          Your BVN is used locally to generate a cryptographic proof. It is <strong>never sent</strong> to our servers.
+
+                    {error && (
+                      <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-error text-sm font-body">
+                        {error}
+                      </div>
+                    )}
+
+                    <div className="pt-4 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => { setStep("identity"); setError(null); setKycMethod(null); }}
+                        className="font-subhead-caps text-subhead-caps text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-base">arrow_back</span>
+                        Back
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!kycMethod || loading}
+                        className="bg-primary text-secondary-fixed px-12 py-4 font-subhead-caps text-subhead-caps tracking-widest hover:shadow-lg hover:shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
+                      >
+                        {loading ? (
+                          <>
+                            <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                            VERIFYING...
+                          </>
+                        ) : (
+                          <>
+                            CONTINUE TO LIVENESS
+                            <span className="material-symbols-outlined text-base">arrow_forward</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  /* Sub-step: Liveness (Mobile QR Hand-off + Desktop Local Scanner) */
+                  <div className="space-y-8 animate-in fade-in duration-300">
+                    <header className="mb-2">
+                      <h3 className="font-display text-[22px] font-bold text-primary">Biometric Liveness attestation</h3>
+                      <p className="text-on-surface-variant font-body-md mt-1">
+                        Complete liveness checks to authorize ZK-Compliance credentials.
+                      </p>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center py-4">
+                      {/* Left: Mobile Hand-off QR Code */}
+                      <div className="bg-surface-container-low border border-outline-variant/40 rounded-xl p-6 text-center space-y-4 shadow-sm">
+                        <span className="font-subhead-caps text-[10px] text-outline block">MOBILE SCAN HAND-OFF</span>
+                        
+                        {/* Simulated QR Code Wrapper */}
+                        <div className="w-40 h-40 bg-white p-2 rounded-lg mx-auto flex flex-col items-center justify-center border border-outline-variant/30 shadow-inner group">
+                          {/* Premium Abstract QR Pattern Simulator */}
+                          <div className="w-full h-full relative opacity-85 group-hover:scale-95 transition-transform">
+                            <span className="material-symbols-outlined text-[140px] text-primary" style={{ fontVariationSettings: "'FILL' 0" }}>
+                              qr_code_2
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-on-surface-variant leading-relaxed">
+                          Scan with your phone to complete face verification in high quality on your mobile camera.
+                        </p>
+                        
+                        {kycToken && (
+                          <button
+                            onClick={() => window.open(mobileKycLink, "_blank")}
+                            className="text-xs text-primary font-bold underline hover:brightness-110"
+                          >
+                            Open Mobile Simulator in New Tab
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Right: Desktop Local Camera Simulator */}
+                      <div className="border border-outline-variant/50 rounded-xl p-6 text-center space-y-4 bg-surface/50 backdrop-blur-sm">
+                        <span className="font-subhead-caps text-[10px] text-outline block">VERIFY LOCALLY</span>
+                        
+                        {/* Biometric Scan circular guide */}
+                        <div className="relative w-36 h-36 rounded-full overflow-hidden border-2 border-dashed border-outline-variant mx-auto flex items-center justify-center bg-surface-container-low/30 shadow-inner">
+                          {loading ? (
+                            <div className="absolute inset-0 border-2 border-t-primary rounded-full animate-spin" />
+                          ) : null}
+                          <span className="material-symbols-outlined text-[54px] text-outline animate-pulse">
+                            face
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-on-surface-variant leading-relaxed">
+                          Verify locally using your computer's webcam. Fits standard desktop onboarding triggers.
+                        </p>
+
+                        <button
+                          onClick={handleLocalDesktopScan}
+                          disabled={loading}
+                          className="w-full py-3.5 bg-primary text-secondary-fixed rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
+                        >
+                          {loading ? "Scanning Face..." : "Start Face Scan"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isPolling && (
+                      <div className="flex items-center justify-center gap-3 p-4 bg-secondary-fixed/5 border border-secondary-fixed/20 rounded-xl text-center">
+                        <span className="material-symbols-outlined text-secondary text-sm animate-spin">sync</span>
+                        <p className="text-xs text-on-surface-variant">
+                          Listening for mobile verification sync status...
                         </p>
                       </div>
                     )}
+
+                    <div className="pt-4 flex justify-start">
+                      <button
+                        type="button"
+                        onClick={() => { setKycSubStep("method"); setError(null); }}
+                        className="font-subhead-caps text-subhead-caps text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-base">arrow_back</span>
+                        Back to BVN
+                      </button>
+                    </div>
                   </div>
                 )}
-
-                {error && (
-                  <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-error text-sm font-body">
-                    {error}
-                  </div>
-                )}
-
-                <div className="pt-4 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => { setStep("identity"); setError(null); setKycMethod(null); }}
-                    className="font-subhead-caps text-subhead-caps text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-base">arrow_back</span>
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!kycMethod || loading}
-                    className="bg-primary text-secondary-fixed px-12 py-4 font-subhead-caps text-subhead-caps tracking-widest hover:shadow-lg hover:shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
-                        VERIFYING...
-                      </>
-                    ) : (
-                      <>
-                        COMPLETE ONBOARDING
-                        <span className="material-symbols-outlined text-base">arrow_forward</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
+              </div>
             )}
 
             {/* Step 3: Success */}

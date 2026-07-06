@@ -293,4 +293,88 @@ export async function borrowerRoutes(app: FastifyInstance) {
       return reply.code(500).send({ error: `Failed to generate AI advice: ${(err as Error).message}` });
     }
   });
+
+  // POST /borrowers/:id/documents
+  app.post('/borrowers/:id/documents', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const { type, fileName, fileSize, base64Data } = request.body as any;
+
+      if (!type || !fileName || !fileSize || !base64Data) {
+        return reply.code(400).send({ error: 'Missing required document upload fields: type, fileName, fileSize, base64Data' });
+      }
+
+      if (!['CAC_CERTIFICATE', 'DIRECTOR_ID'].includes(type)) {
+        return reply.code(400).send({ error: 'Invalid document type. Must be CAC_CERTIFICATE or DIRECTOR_ID' });
+      }
+
+      const borrower = await db.borrower.findUnique({ where: { id } });
+      if (!borrower) {
+        return reply.code(404).send({ error: 'Borrower profile not found' });
+      }
+
+      const doc = await db.kycDocument.create({
+        data: {
+          borrowerId: id,
+          type,
+          fileName,
+          fileSize: Number(fileSize),
+          base64Data
+        }
+      });
+
+      return {
+        message: 'Document uploaded successfully',
+        documentId: doc.id,
+        type: doc.type,
+        fileName: doc.fileName
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to upload document: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /borrowers/:id/documents
+  app.get('/borrowers/:id/documents', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+
+      const documents = await db.kycDocument.findMany({
+        where: { borrowerId: id },
+        select: {
+          id: true,
+          type: true,
+          fileName: true,
+          fileSize: true,
+          uploadedAt: true
+        }
+      });
+
+      return documents;
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to list documents: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /borrowers/documents/:docId
+  app.get('/borrowers/documents/:docId', async (request, reply) => {
+    try {
+      const { docId } = request.params as any;
+
+      const doc = await db.kycDocument.findUnique({
+        where: { id: docId }
+      });
+
+      if (!doc) {
+        return reply.code(404).send({ error: 'Document not found' });
+      }
+
+      return doc;
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve document: ${(err as Error).message}` });
+    }
+  });
 }

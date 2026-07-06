@@ -28,6 +28,7 @@ import { TransactionHistoryPage } from "@/pages/TransactionHistoryPage";
 import { PortfolioPage } from "@/pages/PortfolioPage";
 import { ComplianceChecklistPage } from "@/pages/ComplianceChecklistPage";
 import { POSTerminalPage } from "@/pages/POSTerminalPage";
+import { MobileKycPage } from "@/pages/MobileKycPage";
 
 function LandingPage() {
   useScrollReveal();
@@ -55,6 +56,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/onboard" element={<OnboardingPage />} />
         <Route path="/borrow/onboard" element={<BorrowerOnboardingPage />} />
+        <Route path="/onboard/mobile-kyc" element={<MobileKycPage />} />
 
         {/* ── Tier 2: Core User Platform (Saver) ── */}
         <Route path="/dashboard" element={<DashboardPage />} />

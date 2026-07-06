@@ -510,4 +510,75 @@ export async function saverRoutes(app: FastifyInstance) {
       return reply.code(500).send({ error: `Failed to retrieve vault health: ${(err as Error).message}` });
     }
   });
+
+  // Simple in-memory session store for Mobile Handshake (0 downtime, no external dependencies)
+  const kycSessions = new Map<string, { status: 'PENDING' | 'VERIFIED' | 'FAILED'; userId: string | null }>();
+
+  // POST /savers/sessions/handshake
+  app.post('/savers/sessions/handshake', async (request, reply) => {
+    try {
+      const token = 'token-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      kycSessions.set(token, { status: 'PENDING', userId: null });
+      return { token };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to create compliance session: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /savers/sessions/:token
+  app.get('/savers/sessions/:token', async (request, reply) => {
+    try {
+      const { token } = request.params as any;
+      const session = kycSessions.get(token);
+
+      if (!session) {
+        return reply.code(404).send({ error: 'Compliance session not found or expired' });
+      }
+
+      return {
+        status: session.status,
+        userId: session.userId
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve compliance session: ${(err as Error).message}` });
+    }
+  });
+
+  // POST /savers/sessions/:token/verify
+  app.post('/savers/sessions/:token/verify', async (request, reply) => {
+    try {
+      const { token } = request.params as any;
+      const { userId } = request.body as any;
+
+      const session = kycSessions.get(token);
+      if (!session) {
+        return reply.code(404).send({ error: 'Compliance session not found or expired' });
+      }
+
+      // Update session state
+      session.status = 'VERIFIED';
+      if (userId) {
+        session.userId = userId;
+        // Check if user exists and update
+        const user = await db.user.findUnique({ where: { id: userId } });
+        if (user) {
+          await db.user.update({
+            where: { id: userId },
+            data: { kycStatus: 'VERIFIED' }
+          });
+        }
+      }
+      kycSessions.set(token, session);
+
+      return {
+        success: true,
+        message: 'Liveness identity verified successfully'
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to verify compliance session: ${(err as Error).message}` });
+    }
+  });
 }
