@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 export function Hero() {
+  const navigate = useNavigate();
+
   return (
     <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
       {/* Background parabolic shapes */}
@@ -28,13 +32,46 @@ export function Hero() {
             with the fluidity of water and the permanence of stone.
           </p>
 
-          <div className="flex items-center gap-6 pt-4">
-            <button className="bg-primary text-secondary-fixed px-10 py-5 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:scale-105 transition-transform">
-              Enter the Ecosystem
+          {/* Dual-path CTA */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <button
+              id="hero-cta-saver"
+              onClick={() => navigate("/onboard")}
+              className="group relative bg-primary text-secondary-fixed px-10 py-5 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-3 overflow-hidden"
+            >
+              <span className="material-symbols-outlined text-[18px] text-secondary-fixed/70 group-hover:text-secondary-fixed transition-colors">
+                savings
+              </span>
+              Save &amp; Earn
+              <span className="absolute inset-0 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
-            <button className="border border-primary text-primary px-10 py-5 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:bg-primary/5 transition-colors">
-              The Vision
+
+            <button
+              id="hero-cta-borrower"
+              onClick={() => navigate("/borrow/onboard")}
+              className="group border border-primary text-primary px-10 py-5 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:bg-primary hover:text-white transition-all flex items-center justify-center gap-3"
+            >
+              <span className="material-symbols-outlined text-[18px] transition-colors group-hover:text-white">
+                business_center
+              </span>
+              Apply for Credit
             </button>
+          </div>
+
+          {/* Role labels */}
+          <div className="flex gap-10 pt-1">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
+              <span className="text-[12px] font-body text-on-surface-variant tracking-wide">
+                Individual Savers &amp; Investors
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary inline-block" />
+              <span className="text-[12px] font-body text-on-surface-variant tracking-wide">
+                Corporate &amp; Institutional Borrowers
+              </span>
+            </div>
           </div>
         </div>
 

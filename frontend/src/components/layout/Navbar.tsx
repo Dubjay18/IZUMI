@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useUser } from "@/context/UserContext";
 
 const LOGO_SRC =
   "https://lh3.googleusercontent.com/aida/AP1WRLsnnW5QHpNXUie_IG7utyOUeF6-kEGW_OED3NyOFV18kvh3PqIAwmKCg3Ywu9qK_TtlUGQfTjLcobo_pBkXQ_wVpmaQxU-LpzybVcr82RaEcluvTjx8TfnRHxQBD7WS_D5o7MJsE49OXm61IxjiB_8w3us59IEAltIpnAKgfxvc1Nsd-Kc6zNH5u63pg7skERonRnSCXj_2O5VfeBNRy5ena82kmxamqX1xNcHaTU-Pmgl3KFKHu0NdgxM";
@@ -15,6 +16,10 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const isLanding = location.pathname === "/";
+  const { session } = useUser();
+  const shortWallet = session?.walletAddress
+    ? `${session.walletAddress.slice(0, 6)}…${session.walletAddress.slice(-4)}`
+    : "0x88…f241";
 
   useEffect(() => {
     if (!isLanding) return;
@@ -51,12 +56,21 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
-          <Link
-            to="/dashboard"
-            className="bg-primary text-secondary-fixed px-8 py-3 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:shadow-lg transition-all active:scale-95"
-          >
-            Launch App
-          </Link>
+          {session ? (
+            <Link
+              to="/dashboard"
+              className="bg-primary text-secondary-fixed px-8 py-3 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:shadow-lg transition-all active:scale-95"
+            >
+              Open Dashboard
+            </Link>
+          ) : (
+            <Link
+              to="/onboard"
+              className="bg-primary text-secondary-fixed px-8 py-3 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:shadow-lg transition-all active:scale-95"
+            >
+              Get Started
+            </Link>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -88,7 +102,7 @@ export function Navbar() {
         <div className="h-6 w-px bg-outline-variant/60" />
         <div className="flex items-center gap-2 bg-surface-container-high px-3 py-1.5 rounded-full border border-outline-variant/20 cursor-pointer hover:border-outline-variant/50 transition-colors">
           <div className="w-2 h-2 rounded-full bg-surface-tint" />
-          <span className="text-[12px] font-body font-medium">0x88...f241</span>
+          <span className="text-[12px] font-body font-medium">{shortWallet}</span>
         </div>
       </div>
     </header>

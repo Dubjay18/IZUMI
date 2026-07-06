@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DurationCard } from "@/components/dashboard/DurationCard";
 import { VirtualAccountCard } from "@/components/dashboard/VirtualAccountCard";
-import { Link } from "react-router-dom";
-import { api } from "@/services/api";
+import { useUser } from "@/context/UserContext";
+import { saverApi } from "@/lib/api";
 
 const DURATION_OPTIONS = [
   {
@@ -31,32 +32,21 @@ const DURATION_OPTIONS = [
 
 export function DepositPage() {
   const [selectedId, setSelectedId] = useState("30");
-  const [sessionUser, setSessionUser] = useState<any>(null);
-  const [virtualAccount, setVirtualAccount] = useState<any>(null);
+  const { session } = useUser();
+  const navigate = useNavigate();
   const [isSimulating, setIsSimulating] = useState(false);
   const [simMessage, setSimMessage] = useState("");
-
-  useEffect(() => {
-    const role = localStorage.getItem("izumi_user_role");
-    const userId = localStorage.getItem("izumi_user_id");
-    const name = localStorage.getItem("izumi_user_name");
-    const vaRaw = localStorage.getItem("izumi_virtual_account");
-
-    if (role === "SAVER" && userId && name && vaRaw) {
-      setSessionUser({ role, userId, name });
-      setVirtualAccount(JSON.parse(vaRaw));
-    }
-  }, []);
 
   const selected = DURATION_OPTIONS.find((d) => d.id === selectedId)!;
 
   const handleSimulateDeposit = async () => {
-    if (!virtualAccount) return;
+    const va = session?.virtualAccount;
+    if (!va) return;
     try {
       setIsSimulating(true);
       setSimMessage("");
       // Simulate NGN 150,000 bank transfer collections webhook from Nomba
-      const res = await api.triggerMockDepositWebhook(virtualAccount.accountNumber, 150000);
+      const res = await saverApi.triggerMockDepositWebhook(va.accountNumber, 150000, va.reference);
       setSimMessage("Success! Webhook received and processed by Railway backend.");
       alert(`Webhook Triggered: ${res.message || "Simulated deposit swept to vault successfully."}`);
     } catch (err: any) {
@@ -107,12 +97,12 @@ export function DepositPage() {
 
           {/* Right Column: Virtual Account Card */}
           <div className="col-span-12 md:col-span-7">
-            {sessionUser ? (
+            {session?.virtualAccount ? (
               <div className="space-y-6">
                 <VirtualAccountCard
-                  accountNumber={virtualAccount.accountNumber}
-                  bankName={virtualAccount.bankName}
-                  accountName={virtualAccount.accountName}
+                  accountNumber={session.virtualAccount.accountNumber}
+                  bankName={session.virtualAccount.bankName}
+                  accountName={session.virtualAccount.accountName}
                   selectedDuration={selected.duration}
                 />
 
@@ -137,20 +127,25 @@ export function DepositPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-surface-container-low border border-outline-variant rounded-2xl p-12 text-center space-y-6">
-                <span className="material-symbols-outlined text-[64px] text-outline-variant">
-                  account_balance_wallet
+              /* Unauthenticated / no account yet */
+              <div className="bg-primary text-on-primary p-12 rounded-2xl shadow-2xl min-h-[600px] flex flex-col items-center justify-center text-center gap-6">
+                <span className="material-symbols-outlined text-[64px] opacity-60" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  account_balance
                 </span>
-                <h3 className="text-2xl font-display font-semibold text-primary">No Active Saver Session</h3>
-                <p className="text-on-surface-variant max-w-md mx-auto text-sm leading-relaxed">
-                  Before you can generate a virtual account and fund deposits, you must complete your Zero-Knowledge compliance check.
-                </p>
-                <Link
-                  to="/compliance"
-                  className="inline-block px-8 py-4 bg-primary text-secondary-container rounded-full font-bold text-xs uppercase tracking-widest hover:brightness-110 transition-all"
+                <div>
+                  <h3 className="font-display text-[28px] font-semibold text-secondary-fixed mb-3">
+                    No Virtual Account Yet
+                  </h3>
+                  <p className="font-body text-on-primary-container leading-relaxed max-w-xs">
+                    Complete saver onboarding to receive your personal Nomba virtual account for deposits.
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate("/onboard")}
+                  className="px-10 py-3.5 bg-secondary-container text-on-secondary-fixed font-bold rounded-xl text-[14px] font-body hover:shadow-lg active:scale-[0.98] transition-all"
                 >
-                  Go to Compliance Shield
-                </Link>
+                  Start Onboarding
+                </button>
               </div>
             )}
           </div>
@@ -159,4 +154,3 @@ export function DepositPage() {
     </AppLayout>
   );
 }
-

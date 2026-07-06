@@ -1,17 +1,15 @@
 import fastify from 'fastify';
 import cors from '@fastify/cors';
-import dotenv from 'dotenv';
 import { aiService } from './services/ai.service.js';
 import { borrowerRoutes } from './routes/borrower.routes.js';
 import { loanRoutes } from './routes/loan.routes.js';
 import { saverRoutes } from './routes/saver.routes.js';
 import { webhookRoutes } from './routes/webhook.routes.js';
 
-dotenv.config();
-
 export const app = fastify({
   logger: true,
 });
+
 
 
 // Register CORS

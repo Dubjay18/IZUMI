@@ -249,7 +249,7 @@ export async function webhookRoutes(app: FastifyInstance) {
         });
 
         if (borrower) {
-          const activeLoan = borrower.loanApplications.find(loan => loan.status === 'ACTIVE');
+          const activeLoan = borrower.loanApplications.find((loan: any) => loan.status === 'ACTIVE');
           if (activeLoan) {
             const repaymentNGN = Number(amount);
             const currentRepaid = Number(activeLoan.amountRepaid);

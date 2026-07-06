@@ -1,296 +1,200 @@
 import { useState, useCallback } from "react";
-import { api } from "@/services/api";
+import { generateKycProof } from "@/lib/zk";
+import { useUser } from "@/context/UserContext";
 
-const STEPS = [
-  { icon: "person_check", label: "Identity", id: "identity" },
-  { icon: "generating_tokens", label: "Generation", id: "generation" },
-  { icon: "verified", label: "Verification", id: "verification" },
+type ProofStep = "idle" | "generating" | "verifying" | "done" | "error";
+
+const STEP_LABELS = [
+  { icon: "person_check", label: "Identity" },
+  { icon: "generating_tokens", label: "Generation" },
+  { icon: "verified", label: "Verification" },
 ] as const;
 
-// Standard mock Groth16 zk-SNARK proof format matching the ZK Service validation constraints
-const MOCK_ZK_PROOF = {
-  pi_a: ["0x98f...", "0x2bc...", "1"],
-  pi_b: [["0x111...", "0x01"], ["0x222...", "0x02"], ["1", "0"]],
-  pi_c: ["0x45a...", "0x3dd...", "1"],
-  publicSignals: ["0x7e53f...", "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"]
-};
+function stepIndex(step: ProofStep): number {
+  if (step === "generating") return 0;
+  if (step === "verifying") return 1;
+  if (step === "done") return 2;
+  return -1;
+}
 
 export function ZKProverWidget() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"SAVER" | "BORROWER">("SAVER");
-  const [currentStep, setCurrentStep] = useState<"input" | "generating" | "verifying" | "success" | "error">("input");
-  const [onboardedData, setOnboardedData] = useState<any>(null);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [isHovered, setIsHovered] = useState(false);
+  const { session } = useUser();
+  const [bvn, setBvn] = useState("");
+  const [proofStep, setProofStep] = useState<ProofStep>("idle");
+  const [showInput, setShowInput] = useState(false);
+  const [commitment, setCommitment] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
-  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
-
-  const handleOnboard = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !email) {
-      alert("Please fill in all fields.");
+  const handleGenerate = useCallback(async () => {
+    if (!bvn || bvn.length !== 11 || !/^\d+$/.test(bvn)) {
+      setError("BVN must be exactly 11 digits.");
       return;
     }
-
+    const walletAddr = session?.walletAddress || "0x0000000000000000000000000000000000000001";
+    setError(null);
+    setProofStep("generating");
     try {
-      setCurrentStep("generating");
-      // Simulate client-side ZK-SNARK proving time
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      setCurrentStep("verifying");
-      
-      if (role === "SAVER") {
-        const response = await api.onboardSaver(name, email, MOCK_ZK_PROOF);
-        setOnboardedData(response);
-        // Persist session locally
-        localStorage.setItem("izumi_user_role", "SAVER");
-        localStorage.setItem("izumi_user_id", response.userId);
-        localStorage.setItem("izumi_user_name", name);
-        localStorage.setItem("izumi_user_email", email);
-        localStorage.setItem("izumi_user_wallet", response.walletAddress);
-        localStorage.setItem("izumi_virtual_account", JSON.stringify(response.virtualAccount));
-      } else {
-        const response = await api.onboardBorrower(name, email, MOCK_ZK_PROOF);
-        setOnboardedData(response);
-        // Persist session locally
-        localStorage.setItem("izumi_user_role", "BORROWER");
-        localStorage.setItem("izumi_user_id", response.borrowerId);
-        localStorage.setItem("izumi_user_name", name);
-        localStorage.setItem("izumi_user_email", email);
-        localStorage.setItem("izumi_user_wallet", response.walletAddress);
-      }
-
-      setCurrentStep("success");
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || "An error occurred during onboarding.");
-      setCurrentStep("error");
+      await new Promise(r => setTimeout(r, 900));
+      const proof = await generateKycProof(bvn, walletAddr);
+      setProofStep("verifying");
+      await new Promise(r => setTimeout(r, 700));
+      setCommitment(proof.publicSignals[0]);
+      setProofStep("done");
+    } catch (err) {
+      setError((err as Error).message);
+      setProofStep("error");
     }
-  };
+  }, [bvn, session?.walletAddress]);
 
-  const handleReset = () => {
-    setName("");
-    setEmail("");
-    setCurrentStep("input");
-    setOnboardedData(null);
-    setErrorMsg("");
-  };
+  const isProcessing = proofStep === "generating" || proofStep === "verifying";
+  const activeStep = stepIndex(proofStep);
 
   return (
     <div className="glass-panel p-12 rounded-xl text-center relative overflow-hidden">
       {/* Shield Animation */}
       <div className="mb-10 relative h-48 flex items-center justify-center">
-        <div className={`absolute w-32 h-32 bg-primary/5 rounded-full opacity-20 ${currentStep === "generating" || currentStep === "verifying" ? "animate-pulse" : "animate-ping-slow"}`} />
+        <div className={`absolute w-32 h-32 bg-primary/5 rounded-full opacity-20 ${isProcessing ? "animate-ping-slow" : ""}`} />
         <div className="absolute w-40 h-40 border border-primary-fixed/30 rounded-full" />
-        <div className={`z-10 w-24 h-24 text-secondary-container rounded-full flex items-center justify-center shadow-xl transition-all duration-300 ${currentStep === "success" ? "bg-secondary-container text-primary" : "bg-primary text-secondary-container"}`}>
-          <span
-            className="material-symbols-outlined text-[48px]"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            {currentStep === "success" ? "verified" : currentStep === "error" ? "gpp_bad" : "shield_lock"}
+        <div className={`z-10 w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all ${
+          proofStep === "done" ? "bg-green-500" : proofStep === "error" ? "bg-error" : "bg-primary"
+        } text-secondary-container`}>
+          <span className="material-symbols-outlined text-[48px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            {proofStep === "done" ? "verified" : proofStep === "error" ? "error" : "shield_lock"}
           </span>
         </div>
-        {/* Parabolic SVG paths */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-20"
-          viewBox="0 0 400 200"
-        >
-          <path
-            className="text-primary"
-            d="M50,150 Q200,20 350,150"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
-          <path
-            className="text-primary"
-            d="M20,180 Q200,0 380,180"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          />
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" viewBox="0 0 400 200">
+          <path d="M50,150 Q200,20 350,150" fill="none" stroke="currentColor" strokeWidth="1" className="text-primary" />
+          <path d="M20,180 Q200,0 380,180" fill="none" stroke="currentColor" strokeWidth="1" className="text-primary" />
         </svg>
       </div>
 
       {/* Heading */}
-      <div className="max-w-md mx-auto space-y-2 mb-8">
-        <h1 className="font-display text-[32px] font-semibold text-primary leading-tight">
-          Compliance Shield
-        </h1>
-        <p className="text-on-surface-variant font-body leading-relaxed text-sm">
-          Generate a zero-knowledge proof of regulatory standing without
-          revealing your underlying sensitive credentials.
+      <div className="max-w-md mx-auto space-y-2">
+        <h1 className="font-display text-headline-md font-semibold text-primary leading-tight">Compliance Shield</h1>
+        <p className="text-on-surface-variant font-body leading-relaxed">
+          Generate a zero-knowledge proof of regulatory standing without revealing your underlying sensitive data.
         </p>
       </div>
 
       {/* Step Indicators */}
-      <div className="flex items-center justify-center gap-4 max-w-lg mx-auto mb-10">
-        {STEPS.map((step, index) => {
-          const isActive = 
-            (step.id === "identity" && currentStep !== "success") ||
-            (step.id === "generation" && (currentStep === "generating" || currentStep === "verifying" || currentStep === "success")) ||
-            (step.id === "verification" && (currentStep === "verifying" || currentStep === "success"));
-
+      <div className="mt-12 flex items-center justify-center gap-4 max-w-lg mx-auto">
+        {STEP_LABELS.map((step, index) => {
+          const isActive = index <= activeStep;
+          const isCurrent = index === activeStep && isProcessing;
           return (
             <div key={step.label} className="contents">
               <div className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    isActive
-                      ? "bg-primary text-on-primary"
-                      : "bg-surface-container-high text-outline"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {step.icon}
-                  </span>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                  isActive ? "bg-primary text-on-primary" : "bg-surface-container-high text-outline"
+                } ${isCurrent ? "animate-pulse" : ""}`}>
+                  <span className="material-symbols-outlined text-[20px]">{step.icon}</span>
                 </div>
-                <span
-                  className={`text-[12px] font-body transition-all ${
-                    isActive
-                      ? "font-bold text-primary"
-                      : "font-semibold text-on-surface-variant"
-                  }`}
-                >
+                <span className={`text-label-sm font-body ${isActive ? "font-bold text-primary" : "font-semibold text-on-surface-variant"}`}>
                   {step.label}
                 </span>
               </div>
-              {index < STEPS.length - 1 && (
-                <div className="w-12 h-[2px] bg-outline-variant mb-6" />
+              {index < STEP_LABELS.length - 1 && (
+                <div className={`w-12 h-0.5 mb-6 transition-colors ${isActive ? "bg-primary" : "bg-outline-variant"}`} />
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Form / Actions */}
-      {currentStep === "input" && (
-        <form onSubmit={handleOnboard} className="text-left max-w-md mx-auto space-y-5">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Onboarding Persona</label>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setRole("SAVER")}
-                className={`py-3 rounded-lg border font-bold text-sm transition-all ${role === "SAVER" ? "border-primary bg-primary/10 text-primary" : "border-outline-variant text-on-surface-variant"}`}
-              >
-                Retail Saver
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole("BORROWER")}
-                className={`py-3 rounded-lg border font-bold text-sm transition-all ${role === "BORROWER" ? "border-primary bg-primary/10 text-primary" : "border-outline-variant text-on-surface-variant"}`}
-              >
-                SME Merchant
-              </button>
+      {/* Action Area */}
+      <div className="mt-12 p-8 bg-surface-container-low rounded-lg border border-outline-variant/30 space-y-5">
+        {proofStep === "done" && commitment ? (
+          <div className="space-y-4 text-left">
+            <div className="flex items-center gap-2 text-green-600">
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <p className="font-body font-bold text-subhead-caps">ZK Proof Generated Successfully</p>
             </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Full Name / Business Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Chinedu Stores"
-              className="w-full p-3 bg-white border border-outline-variant rounded-lg text-sm focus:border-primary outline-none"
-              required
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. chinedu@stores.com"
-              className="w-full p-3 bg-white border border-outline-variant rounded-lg text-sm focus:border-primary outline-none"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            className={`w-full py-4 mt-4 bg-primary text-secondary-container rounded-full text-xs font-bold uppercase tracking-widest transition-all active:scale-95 shadow-md flex items-center justify-center gap-3 cursor-pointer ${isHovered ? "shimmer" : ""}`}
-          >
-            GENERATE ZK PROOF & ONBOARD
-            <span className="material-symbols-outlined">arrow_forward</span>
-          </button>
-        </form>
-      )}
-
-      {currentStep === "generating" && (
-        <div className="p-8 bg-surface-container-low rounded-lg border border-outline-variant/30 text-center space-y-4">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="font-bold text-primary">Generating Cryptographic Proof...</p>
-          <p className="text-xs text-on-surface-variant">Hashing parameters & signing locally using groth16 prover</p>
-        </div>
-      )}
-
-      {currentStep === "verifying" && (
-        <div className="p-8 bg-surface-container-low rounded-lg border border-outline-variant/30 text-center space-y-4">
-          <div className="w-10 h-10 border-4 border-secondary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="font-bold text-secondary">Verifying Proof On-Chain...</p>
-          <p className="text-xs text-on-surface-variant">Checking signature verification keys & creating gas-less wallet</p>
-        </div>
-      )}
-
-      {currentStep === "success" && (
-        <div className="p-8 bg-surface-container-low rounded-lg border border-outline-variant/30 text-left space-y-5 max-w-md mx-auto">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-secondary">Onboarding Verified!</span>
-            <span className="material-symbols-outlined text-secondary">check_circle</span>
-          </div>
-
-          <div className="space-y-2 text-xs">
-            <div>
-              <span className="font-bold text-on-surface-variant uppercase tracking-wider block">Assigned User ID</span>
-              <span className="font-mono text-on-surface break-all bg-white p-2 border border-outline-variant/40 rounded block mt-1">{onboardedData?.userId || onboardedData?.borrowerId}</span>
+            <div className="p-4 bg-surface-container-highest rounded-xl border border-outline-variant/40">
+              <p className="text-[11px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant mb-1">Commitment Hash (Public)</p>
+              <p className="font-mono text-[11px] text-surface-tint break-all">{commitment}</p>
             </div>
-            <div>
-              <span className="font-bold text-on-surface-variant uppercase tracking-wider block">Gas-less Web3 Wallet</span>
-              <span className="font-mono text-on-surface break-all bg-white p-2 border border-outline-variant/40 rounded block mt-1">{onboardedData?.walletAddress}</span>
-            </div>
-            {onboardedData?.virtualAccount && (
-              <div>
-                <span className="font-bold text-on-surface-variant uppercase tracking-wider block">Nomba Virtual Bank Account</span>
-                <div className="bg-white p-3 border border-outline-variant/40 rounded space-y-1 mt-1 font-semibold text-on-surface">
-                  <p>Bank: {onboardedData.virtualAccount.bankName}</p>
-                  <p>Name: {onboardedData.virtualAccount.accountName}</p>
-                  <p className="text-sm text-primary font-bold">Number: {onboardedData.virtualAccount.accountNumber}</p>
+            <p className="text-[11px] text-on-surface-variant font-body italic">
+              Your BVN was never transmitted. Only this cryptographic commitment was generated.
+            </p>
+            <button
+              onClick={() => { setProofStep("idle"); setBvn(""); setShowInput(false); setCommitment(null); }}
+              className="w-full border border-outline-variant py-3 rounded-full text-[13px] font-body font-semibold text-on-surface-variant hover:bg-surface-container transition-all"
+            >
+              Reset Shield
+            </button>
+          </div>
+        ) : (
+          <>
+            {showInput ? (
+              <div className="space-y-4 text-left">
+                <div>
+                  <label className="text-label-sm font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">
+                    BVN (stays on your device)
+                  </label>
+                  <input
+                    id="zk-bvn-input"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={11}
+                    value={bvn}
+                    onChange={e => { setBvn(e.target.value.replace(/\D/g, "")); setError(null); }}
+                    placeholder="•••••••••••"
+                    className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl text-on-surface focus:border-primary focus:outline-none transition-colors font-mono tracking-widest"
+                  />
                 </div>
+                <div className="flex items-start gap-2 p-3 bg-secondary-fixed/10 rounded-lg border border-secondary/20">
+                  <span className="material-symbols-outlined text-secondary text-body-md mt-0.5">lock</span>
+                  <p className="text-[11px] font-body text-on-surface-variant leading-relaxed">
+                    Only a SHA-256 commitment is computed locally. Your BVN is <strong>never sent</strong> to any server.
+                  </p>
+                </div>
+                {error && <p className="text-error text-sm font-body">{error}</p>}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between text-left">
+                <div>
+                  <p className="text-label-sm font-body font-bold text-primary">
+                    {session ? `KYC Status: ${session.kycStatus}` : "KYC Hash Validated"}
+                  </p>
+                  <p className="text-label-sm font-body text-on-surface-variant italic">
+                    {session ? session.email : "Izumi-Internal-0041-X"}
+                  </p>
+                </div>
+                <span className="material-symbols-outlined text-surface-tint" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {session ? "verified_user" : "check_circle"}
+                </span>
               </div>
             )}
-          </div>
 
-          <button
-            type="button"
-            onClick={handleReset}
-            className="w-full py-3 bg-secondary text-on-secondary rounded-lg font-bold text-xs uppercase tracking-wider text-center cursor-pointer"
-          >
-            Onboard Another Account
-          </button>
-        </div>
-      )}
-
-      {currentStep === "error" && (
-        <div className="p-8 bg-error-container text-on-error-container rounded-lg border border-error/20 text-center space-y-4 max-w-md mx-auto">
-          <p className="font-bold text-error">Onboarding Failed</p>
-          <p className="text-sm leading-relaxed">{errorMsg}</p>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="w-full py-3 bg-error text-white rounded-lg font-bold text-xs uppercase tracking-wider text-center cursor-pointer"
-          >
-            Retry Form
-          </button>
-        </div>
-      )}
+            {!showInput ? (
+              <button
+                onClick={() => setShowInput(true)}
+                className="w-full bg-primary text-secondary-container py-4 px-8 rounded-full text-subhead-caps font-body font-semibold uppercase tracking-[0.15em] hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3"
+              >
+                GENERATE PRIVACY SHIELD
+                <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleGenerate}
+                disabled={isProcessing || bvn.length !== 11}
+                className="w-full bg-primary text-secondary-container py-4 px-8 rounded-full text-subhead-caps font-body font-semibold uppercase tracking-[0.15em] hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? (
+                  <><span className="material-symbols-outlined animate-spin">progress_activity</span>
+                    {proofStep === "generating" ? "Computing Proof…" : "Verifying…"}
+                  </>
+                ) : (
+                  <><span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>shield_lock</span>SUBMIT PRIVACY SHIELD</>
+                )}
+              </button>
+            )}
+            <p className="text-[10px] text-on-surface-variant uppercase tracking-[0.2em]">
+              Gas-less transaction powered by Izumi Relayer
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
