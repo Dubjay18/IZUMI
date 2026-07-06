@@ -228,3 +228,55 @@ export interface VaultStatsResponse {
   totalWithdrawnUSD: number;
   activePositions: number;
 }
+
+// ─── Borrower types ───────────────────────────────────────────────────────────
+
+export interface BorrowerProfile {
+  id: string;
+  userId: string;
+  companyName: string;
+  cacRcNumber: string;
+  businessTin: string;
+  sector: string;
+  kybStatus: string;
+  creditScore: number | null;
+  creditGrade: string | null;
+  approvedLimit: number | null;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phoneNumber: string | null;
+    kycStatus: string;
+  };
+}
+
+export interface BorrowerLedgerEntry {
+  id: string;
+  name: string;
+  type: 'DISBURSEMENT' | 'REPAYMENT';
+  amount: number;
+  status: string;
+  createdAt: string;
+  reference: string;
+}
+
+export interface BorrowerLedgerResponse {
+  entries: BorrowerLedgerEntry[];
+  pagination: PaginationInfo;
+}
+
+export interface BorrowerDashboard {
+  totalOutstanding: number;
+  totalRepaid: number;
+  totalCreditLimit: number;
+  availableCredit: number;
+  creditScore: number | null;
+  creditGrade: string | null;
+  accountHealth: number;
+  activeLoansCount: number;
+  nextInstallmentDate: string | null;
+  nextInstallmentAmount: number;
+}

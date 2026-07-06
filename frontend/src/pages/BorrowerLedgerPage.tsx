@@ -2,12 +2,16 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { NotificationFeed } from "@/components/borrower/NotificationFeed";
 import { AccountHealthCard } from "@/components/borrower/AccountHealthCard";
 import { LedgerTable } from "@/components/borrower/LedgerTable";
+import { useUser } from "@/context/UserContext";
+import { useBorrowerDashboard } from "@/hooks/useBorrowerDashboard";
 
 export function BorrowerLedgerPage() {
+  const { session } = useUser();
+  const { dashboard } = useBorrowerDashboard(session?.borrowerId);
+
   return (
     <AppLayout>
       <main className="pt-24 pb-32 px-gutter md:px-container-padding max-w-[1440px] mx-auto min-h-screen">
-        {/* Header */}
         <section className="mb-section-gap">
           <div className="flex flex-col md:flex-row justify-between items-end gap-6">
             <div>
@@ -30,13 +34,11 @@ export function BorrowerLedgerPage() {
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column */}
           <aside className="lg:col-span-4 space-y-8">
             <NotificationFeed />
-            <AccountHealthCard />
+            <AccountHealthCard score={dashboard?.accountHealth} description="Credit repayment and account standing score." />
           </aside>
 
-          {/* Right Column */}
           <div className="lg:col-span-8">
             <LedgerTable />
           </div>

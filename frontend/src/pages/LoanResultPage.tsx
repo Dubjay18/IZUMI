@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { loanApi } from "@/lib/api";
 import type { CreditAnalysis } from "@/lib/types";
 
 const GRADE_CONFIG = {
@@ -58,9 +59,22 @@ export function LoanResultPage() {
     termDays: number;
   } | null };
 
-  const [accepted] = useState(false);
-  const [txHash] = useState<string | null>(null);
-  const [error] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    loanApi
+      .get(id)
+      .then((loan) => {
+        if (loan.status === "ACTIVE" || loan.status === "REPAID") {
+          setAccepted(true);
+          setTxHash(loan.contractBondId);
+        }
+      })
+      .catch(() => {});
+  }, [id]);
 
   if (!state) {
     return (

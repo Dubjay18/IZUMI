@@ -1,18 +1,34 @@
 import { useState } from "react";
 import { useUser } from "@/context/UserContext";
+import { borrowerApi, ApiError } from "@/lib/api";
 
 export function ProfileInfoForm() {
   const { session } = useUser();
   const [name, setName] = useState(session?.name ?? "");
   const [email] = useState(session?.email ?? "");
-  const [phone, setPhone] = useState("+1 (555) 012-9842");
+  const [phone, setPhone] = useState(session?.phoneNumber ?? "+1 (555) 012-9842");
   const [language, setLanguage] = useState("English (UK)");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    if (!session?.borrowerId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await borrowerApi.updateProfile(session.borrowerId, {
+        name: name !== session?.name ? name : undefined,
+        phoneNumber: phone,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : (err as Error).message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -48,11 +64,15 @@ export function ProfileInfoForm() {
         </div>
 
         <div className="md:col-span-2 pt-4 flex items-center gap-4">
+          {error && (
+            <p className="text-error text-sm font-body flex-1">{error}</p>
+          )}
           <button
             type="submit"
-            className="bg-primary text-on-primary px-8 py-3 rounded-full font-body-md font-semibold hover:shadow-lg active:scale-95 transition-all"
+            disabled={saving}
+            className="bg-primary text-on-primary px-8 py-3 rounded-full font-body-md font-semibold hover:shadow-lg active:scale-95 transition-all disabled:opacity-50"
           >
-            Update Information
+            {saving ? "Saving..." : "Update Information"}
           </button>
           {saved && (
             <span className="text-secondary font-body-md font-semibold flex items-center gap-1">

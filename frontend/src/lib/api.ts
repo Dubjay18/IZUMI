@@ -108,6 +108,28 @@ export const borrowerApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  getProfile: (id: string) =>
+    request<import("./types").BorrowerProfile>(`/borrowers/${id}`),
+
+  updateProfile: (id: string, body: { name?: string; phoneNumber?: string; companyName?: string; sector?: string }) =>
+    request<import("./types").BorrowerProfile>(`/borrowers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  getLedger: (id: string, { page, limit, type, search }: { page?: number; limit?: number; type?: string; search?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (page) params.set("page", String(page));
+    if (limit) params.set("limit", String(limit));
+    if (type) params.set("type", type);
+    if (search) params.set("search", search);
+    const qs = params.toString();
+    return request<import("./types").BorrowerLedgerResponse>(`/borrowers/${id}/ledger${qs ? `?${qs}` : ""}`);
+  },
+
+  getDashboard: (id: string) =>
+    request<import("./types").BorrowerDashboard>(`/borrowers/${id}/dashboard`),
 };
 
 // ─── Loan endpoints ───────────────────────────────────────────────────────────
