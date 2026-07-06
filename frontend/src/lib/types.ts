@@ -126,3 +126,105 @@ export interface WithdrawResponse {
   amountUSD: number;
   txHash: string;
 }
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface TransactionResponse {
+  entries: LedgerEntry[];
+  pagination: PaginationInfo;
+}
+
+export interface DepositPosition {
+  id: string;
+  txHash: string | null;
+  type: string;
+  name: string;
+  status: 'Locked' | 'Matured';
+  principalUSD: number;
+  apy: string;
+  createdAt: string;
+  maturityDate: string;
+  progress: number;
+}
+
+export interface PositionsResponse {
+  positions: DepositPosition[];
+  matured: DepositPosition[];
+  vaultBalanceRaw: string;
+  vaultBalanceUSD: number;
+  totalPositions: number;
+}
+
+export interface PortfolioMetric {
+  label: string;
+  value: string;
+  icon: string;
+  change: string;
+  positive: boolean;
+}
+
+export interface PortfolioAllocation {
+  label: string;
+  pct: number;
+  color: string;
+}
+
+export interface PortfolioPerformance {
+  month: string;
+  yield: number;
+  principal: number;
+}
+
+export interface PortfolioDistribution {
+  period: string;
+  principal: number;
+  yield: number;
+}
+
+export interface StrategyMixItem {
+  label: string;
+  pct: number;
+  desc: string;
+}
+
+export interface NextYieldEvent {
+  date: string;
+  estimatedPayoutUSD: number;
+}
+
+export interface PortfolioResponse {
+  metrics: PortfolioMetric[];
+  allocation: PortfolioAllocation[];
+  performance: PortfolioPerformance[];
+  distribution: PortfolioDistribution[];
+  strategyMix: StrategyMixItem[];
+  nextYieldEvent: NextYieldEvent;
+  yieldForecast: YieldForecastQuarter[];
+  assetFlow: AssetFlowItem[];
+}
+
+export interface YieldForecastQuarter {
+  quarter: string;
+  projectedValue: number;
+}
+
+export interface AssetFlowItem {
+  label: string;
+  percentage: number;
+  color: string;
+  desc: string;
+}
+
+export interface VaultStatsResponse {
+  totalSavers: number;
+  totalValueLockedUSD: number;
+  totalYieldDistributedUSD: number;
+  totalDepositedUSD: number;
+  totalWithdrawnUSD: number;
+  activePositions: number;
+}

@@ -67,6 +67,26 @@ export const saverApi = {
 
   getNextAddress: () =>
     request<{ address: string }>("/savers/next-address"),
+
+  getTransactions: (userId: string, { page, limit, type }: { page?: number; limit?: number; type?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (page) params.set('page', String(page));
+    if (limit) params.set('limit', String(limit));
+    if (type) params.set('type', type);
+    const qs = params.toString();
+    return request<import("./types").TransactionResponse>(`/savers/${userId}/transactions${qs ? `?${qs}` : ''}`);
+  },
+
+  getPositions: (userId: string) =>
+    request<import("./types").PositionsResponse>(`/savers/${userId}/positions`),
+
+  getPortfolio: (userId: string) =>
+    request<import("./types").PortfolioResponse>(`/savers/${userId}/portfolio`),
+};
+
+export const vaultApi = {
+  getStats: () =>
+    request<import("./types").VaultStatsResponse>("/vault/stats"),
 };
 
 // ─── Borrower endpoints ───────────────────────────────────────────────────────

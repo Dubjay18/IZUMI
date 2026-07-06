@@ -1,15 +1,20 @@
 import { useUser } from "@/context/UserContext";
 import { useBalance } from "@/hooks/useBalance";
+import { useVaultStats } from "@/hooks/useVaultStats";
 
 export function CommunityImpact() {
   const { session } = useUser();
   const { balanceUSD } = useBalance(session?.userId);
+  const { stats, loading } = useVaultStats();
 
   const baseline = balanceUSD > 0 ? balanceUSD : 10000;
-  
-  // Custom estimated funding split for demonstration
-  const abyssiniaFunding = baseline * 0.045; // 4.5% of portfolio
-  const luminaImpact = (baseline * 0.082).toFixed(2); // 8.2% APY impact metric
+
+  const tvl = stats?.totalValueLockedUSD ?? 142850;
+  const totalYield = stats?.totalYieldDistributedUSD ?? 0;
+  const totalSavers = stats?.totalSavers ?? 0;
+
+  const abyssiniaFunding = baseline * 0.045;
+  const luminaImpact = baseline * 0.082;
 
   const formatUSD = (val: number) =>
     "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -25,7 +30,7 @@ export function CommunityImpact() {
     },
     {
       title: "Lumina Energy",
-      subtitle: `Proportional Allocation: $${Number(luminaImpact).toLocaleString()}`,
+      subtitle: `Proportional Allocation: $${Math.round(luminaImpact).toLocaleString()}`,
       tag: "Renewable Tech",
       image:
         "https://lh3.googleusercontent.com/aida-public/AB6AXuBrdF1Bs0g2Grfh00ujO0wEQMkIHjia3L0Z6Enp0N9YL6IZkGQBRR0Gaxm-VRukr1O5wNguQjDDegJoT2IsfLUVkGSQbOAf_L0CrvvKCc-ZiEx5tdZpToVjfaBZ5IAyYWNYwxCenidSaxens6PDkIYhgFUtH5A3PJSCw-ovkIjBlXK4iRdRnVH5ukJ_pfxH0cAPpnq3TLgTAwzQSQrd3YnK6b6V6Acq3CwqbPwJSas84UcFqSJryZ0L",
@@ -38,6 +43,31 @@ export function CommunityImpact() {
       <h3 className="text-[14px] font-body font-semibold text-primary uppercase tracking-[0.15em] px-2">
         Community Impact
       </h3>
+
+      {loading ? (
+        <div className="space-y-4 px-2">
+          <div className="h-8 w-48 bg-surface-container-high rounded animate-pulse" />
+          <div className="h-6 w-32 bg-surface-container-high rounded animate-pulse" />
+        </div>
+      ) : stats ? (
+        <div className="glass-panel rounded-2xl p-4 mx-2 mb-2 border border-outline-variant/20">
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div>
+              <p className="text-[20px] font-display font-bold text-primary">
+                {totalSavers.toLocaleString()}
+              </p>
+              <p className="text-[10px] text-outline font-medium uppercase tracking-wider">Active Savers</p>
+            </div>
+            <div>
+              <p className="text-[20px] font-display font-bold text-secondary">
+                {formatUSD(totalYield)}
+              </p>
+              <p className="text-[10px] text-outline font-medium uppercase tracking-wider">Yield Distributed</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {IMPACT_PROJECTS.map((project) => (
         <div
           key={project.title}

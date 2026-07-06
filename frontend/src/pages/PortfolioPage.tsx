@@ -1,51 +1,28 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-
-/* ─── Static Data ────────────────────────────────────────────────────── */
-
-const ALLOCATION = [
-  { label: "Treasury Bonds",     pct: 38, color: "#001512", lightColor: "bg-primary" },
-  { label: "Stable Yield Pools", pct: 28, color: "#2b4d46", lightColor: "bg-on-primary-fixed-variant" },
-  { label: "Private Credit",     pct: 20, color: "#735c00", lightColor: "bg-secondary" },
-  { label: "Liquid Equities",    pct: 10, color: "#a9cec5", lightColor: "bg-primary-fixed-dim" },
-  { label: "Cash Reserve",       pct: 4,  color: "#c1c8c5", lightColor: "bg-outline-variant" },
-] as const;
-
-const PERFORMANCE = [
-  { month: "Jan", yield: 2.1, principal: 48 },
-  { month: "Feb", yield: 2.4, principal: 49 },
-  { month: "Mar", yield: 3.0, principal: 51 },
-  { month: "Apr", yield: 2.8, principal: 52 },
-  { month: "May", yield: 3.5, principal: 54 },
-  { month: "Jun", yield: 4.1, principal: 56 },
-  { month: "Jul", yield: 3.9, principal: 57 },
-] as const;
-
-const METRICS = [
-  { label: "Total Portfolio Value",  value: "$284,920",  icon: "account_balance",   change: "+12.4%", positive: true },
-  { label: "Current APY",            value: "8.72%",     icon: "trending_up",       change: "+0.3pp", positive: true },
-  { label: "Total Yield Earned",     value: "$18,340",   icon: "payments",          change: "+$1,820 this month", positive: true },
-  { label: "Unrealized Gains",       value: "$24,160",   icon: "show_chart",        change: "Since inception", positive: true },
-] as const;
-
-const DISTRIBUTION = [
-  { period: "Q1 2026", principal: 220, yield: 14 },
-  { period: "Q2 2026", principal: 245, yield: 19 },
-  { period: "Q3 2026", principal: 258, yield: 22 },
-  { period: "Q4 2026", principal: 271, yield: 26 },
-] as const;
+import { useUser } from "@/context/UserContext";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import type {
+  PortfolioAllocation,
+  PortfolioPerformance,
+  PortfolioDistribution,
+  StrategyMixItem,
+} from "@/lib/types";
 
 type PerfTab = "6M" | "1Y" | "ALL";
 
 /* ─── Donut Chart (SVG) ──────────────────────────────────────────────── */
 
-function DonutChart() {
+function DonutChart({ allocation }: { allocation: PortfolioAllocation[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const cx = 80, cy = 80, r = 62, strokeW = 18;
   const circumference = 2 * Math.PI * r;
 
+  const hasData = allocation.some((a) => a.pct > 0);
+  const displayData = hasData ? allocation : [{ label: "Unallocated", pct: 100, color: "#e0e0e0" }];
+
   let offset = 0;
-  const segments = ALLOCATION.map((a, i) => {
+  const segments = displayData.map((a, i) => {
     const dash = (a.pct / 100) * circumference;
     const gap = circumference - dash;
     const seg = { ...a, dash, gap, offset, i };
@@ -53,12 +30,11 @@ function DonutChart() {
     return seg;
   });
 
-  const total = ALLOCATION.reduce((s, a) => s + a.pct, 0);
-  const hoveredItem = hovered !== null ? ALLOCATION[hovered] : null;
+  const total = displayData.reduce((s, a) => s + a.pct, 0);
+  const hoveredItem = hovered !== null ? displayData[hovered] : null;
 
   return (
     <div className="flex flex-col md:flex-row items-center gap-8">
-      {/* SVG donut */}
       <div className="relative shrink-0">
         <svg width="160" height="160" viewBox="0 0 160 160" className="rotate-[-90deg]">
           {segments.map((seg) => (
@@ -77,7 +53,6 @@ function DonutChart() {
             />
           ))}
         </svg>
-        {/* Centre label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           {hoveredItem ? (
             <>
@@ -99,9 +74,8 @@ function DonutChart() {
         </div>
       </div>
 
-      {/* Legend */}
       <div className="flex flex-col gap-3 flex-1 min-w-0">
-        {ALLOCATION.map((a, i) => (
+        {displayData.map((a, i) => (
           <div
             key={a.label}
             className="flex items-center gap-3 cursor-pointer group"
@@ -127,13 +101,21 @@ function DonutChart() {
 
 /* ─── Performance Chart (SVG line) ──────────────────────────────────── */
 
-function PerformanceChart({ tab }: { tab: PerfTab }) {
-  const data = tab === "ALL" ? PERFORMANCE : tab === "1Y" ? PERFORMANCE : PERFORMANCE.slice(-4);
-  const maxYield = Math.max(...data.map((d) => d.yield));
+function PerformanceChart({ data, tab }: { data: PortfolioPerformance[]; tab: PerfTab }) {
+  const sliced = tab === "ALL" ? data : tab === "1Y" ? data : data.slice(-4);
+  if (sliced.length === 0) {
+    return (
+      <div className="h-[200px] flex items-center justify-center text-on-surface-variant text-sm font-body">
+        No performance data yet
+      </div>
+    );
+  }
+
+  const maxYield = Math.max(...sliced.map((d) => d.yield), 1);
   const H = 200, W = 600, pad = 30;
 
-  const points = data.map((d, i) => ({
-    x: pad + (i / (data.length - 1)) * (W - pad * 2),
+  const points = sliced.map((d, i) => ({
+    x: pad + (i / (sliced.length - 1)) * (W - pad * 2),
     y: H - pad - (d.yield / (maxYield * 1.2)) * (H - pad * 2),
     ...d,
   }));
@@ -147,7 +129,6 @@ function PerformanceChart({ tab }: { tab: PerfTab }) {
   return (
     <div className="w-full overflow-hidden">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="xMidYMid meet">
-        {/* Grid */}
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
           <line
             key={t}
@@ -157,13 +138,9 @@ function PerformanceChart({ tab }: { tab: PerfTab }) {
           />
         ))}
 
-        {/* Area fill */}
         <path d={areaPath} fill="rgba(0,21,18,0.04)" />
-
-        {/* Line */}
         <path d={linePath} fill="none" stroke="#001512" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
-        {/* Points + labels */}
         {points.map((p) => (
           <g key={p.month}>
             <circle cx={p.x} cy={p.y} r="4" fill="#001512" />
@@ -182,11 +159,19 @@ function PerformanceChart({ tab }: { tab: PerfTab }) {
 
 /* ─── Distribution Bar Chart ─────────────────────────────────────────── */
 
-function DistributionChart() {
-  const maxVal = Math.max(...DISTRIBUTION.map((d) => d.principal + d.yield));
+function DistributionChart({ data }: { data: PortfolioDistribution[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="h-40 flex items-center justify-center text-on-surface-variant text-sm font-body">
+        No distribution data yet
+      </div>
+    );
+  }
+
+  const maxVal = Math.max(...data.map((d) => d.principal + d.yield), 1);
   return (
     <div className="flex items-end gap-4 h-40">
-      {DISTRIBUTION.map((d) => {
+      {data.map((d) => {
         const totalH = ((d.principal + d.yield) / maxVal) * 100;
         const yieldH = (d.yield / (d.principal + d.yield)) * totalH;
         const principalH = totalH - yieldH;
@@ -196,12 +181,12 @@ function DistributionChart() {
               <div
                 className="w-full bg-secondary rounded-t-sm transition-all duration-700"
                 style={{ height: `${yieldH}%` }}
-                title={`Yield: $${d.yield}k`}
+                title={`Yield: $${d.yield}`}
               />
               <div
                 className="w-full bg-primary transition-all duration-700"
                 style={{ height: `${principalH}%` }}
-                title={`Principal: $${d.principal}k`}
+                title={`Principal: $${d.principal}`}
               />
             </div>
             <span className="text-[10px] text-on-surface-variant font-body whitespace-nowrap">
@@ -217,12 +202,25 @@ function DistributionChart() {
 /* ─── Page ───────────────────────────────────────────────────────────── */
 
 export function PortfolioPage() {
+  const { session } = useUser();
+  const {
+    metrics, allocation, performance, distribution,
+    strategyMix, nextYieldEvent, loading, error,
+  } = usePortfolio(session?.userId);
+
   const [perfTab, setPerfTab] = useState<PerfTab>("6M");
   const PERF_TABS: PerfTab[] = ["6M", "1Y", "ALL"];
 
+  function fmtDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
   return (
     <AppLayout showCurve={false}>
-      {/* Ambient bg blobs */}
       <div
         className="fixed top-[-10%] right-[-10%] w-[70%] h-[70%] rounded-full -z-10 pointer-events-none"
         style={{ background: "radial-gradient(circle at center, rgba(169,206,197,0.12) 0%, transparent 70%)" }}
@@ -234,7 +232,6 @@ export function PortfolioPage() {
 
       <main className="pt-10 pb-32 px-gutter md:px-container-padding max-w-[1440px] mx-auto">
 
-        {/* ── Header ──────────────────────────────────────────────────── */}
         <section className="mb-section-gap flex flex-col md:flex-row justify-between items-end gap-6">
           <div>
             <p className="font-subhead-caps text-subhead-caps text-secondary tracking-[0.15em] mb-4">
@@ -259,32 +256,46 @@ export function PortfolioPage() {
           </div>
         </section>
 
+        {error && (
+          <div className="mb-6 p-4 bg-error/10 border border-error/30 rounded-xl text-error text-sm font-body">
+            {error}
+          </div>
+        )}
+
         {/* ── Metric Cards ────────────────────────────────────────────── */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter mb-section-gap">
-          {METRICS.map((m) => (
-            <div
-              key={m.label}
-              className="glass-card p-8 rounded-xl flex flex-col justify-between h-44 group hover:border-primary/20 transition-all duration-300"
-            >
-              <div className="flex justify-between items-start">
-                <span className="font-subhead-caps text-subhead-caps text-on-surface-variant leading-tight text-[11px]">
-                  {m.label}
-                </span>
-                <span className="material-symbols-outlined text-primary opacity-40 group-hover:opacity-100 transition-opacity">
-                  {m.icon}
-                </span>
-              </div>
-              <div>
-                <h3 className="font-headline-md text-[28px] text-primary font-bold">{m.value}</h3>
-                <p className={`text-[11px] flex items-center gap-1 mt-1 font-medium ${m.positive ? "text-on-primary-container" : "text-error"}`}>
-                  <span className="material-symbols-outlined text-[13px]">
-                    {m.positive ? "arrow_upward" : "arrow_downward"}
-                  </span>
-                  {m.change}
-                </p>
-              </div>
-            </div>
-          ))}
+          {loading
+            ? [1, 2, 3, 4].map((i) => (
+                <div key={i} className="glass-card p-8 rounded-xl h-44 animate-pulse">
+                  <div className="h-3 w-20 bg-surface-container-high rounded mb-4" />
+                  <div className="h-8 w-32 bg-surface-container-high rounded mb-2" />
+                  <div className="h-3 w-24 bg-surface-container-high rounded" />
+                </div>
+              ))
+            : metrics.map((m) => (
+                <div
+                  key={m.label}
+                  className="glass-card p-8 rounded-xl flex flex-col justify-between h-44 group hover:border-primary/20 transition-all duration-300"
+                >
+                  <div className="flex justify-between items-start">
+                    <span className="font-subhead-caps text-subhead-caps text-on-surface-variant leading-tight text-[11px]">
+                      {m.label}
+                    </span>
+                    <span className="material-symbols-outlined text-primary opacity-40 group-hover:opacity-100 transition-opacity">
+                      {m.icon}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-headline-md text-[28px] text-primary font-bold">{m.value}</h3>
+                    <p className={`text-[11px] flex items-center gap-1 mt-1 font-medium ${m.positive ? "text-on-primary-container" : "text-error"}`}>
+                      <span className="material-symbols-outlined text-[13px]">
+                        {m.positive ? "arrow_upward" : "arrow_downward"}
+                      </span>
+                      {m.change}
+                    </p>
+                  </div>
+                </div>
+              ))}
         </section>
 
         {/* ── Main Grid ───────────────────────────────────────────────── */}
@@ -298,7 +309,13 @@ export function PortfolioPage() {
                 Current deployment by strategy class
               </p>
             </div>
-            <DonutChart />
+            {loading ? (
+              <div className="h-40 flex items-center justify-center">
+                <div className="w-32 h-32 rounded-full bg-surface-container-high animate-pulse" />
+              </div>
+            ) : (
+              <DonutChart allocation={allocation} />
+            )}
           </div>
 
           {/* Performance Analytics */}
@@ -310,7 +327,6 @@ export function PortfolioPage() {
                   Monthly yield rate over time
                 </p>
               </div>
-              {/* Period tabs */}
               <div className="flex gap-1 bg-surface-container-high rounded-full p-1 shrink-0">
                 {PERF_TABS.map((tab) => (
                   <button
@@ -327,14 +343,17 @@ export function PortfolioPage() {
                 ))}
               </div>
             </div>
-            <PerformanceChart tab={perfTab} />
+            {loading ? (
+              <div className="h-[200px] bg-surface-container-high rounded-xl animate-pulse" />
+            ) : (
+              <PerformanceChart data={performance} tab={perfTab} />
+            )}
           </div>
         </section>
 
         {/* ── Distribution Visualization ──────────────────────────────── */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
 
-          {/* Stacked bar chart */}
           <div className="lg:col-span-2 glass-card p-container-padding rounded-xl">
             <div className="flex justify-between items-center mb-8 gap-4">
               <div>
@@ -342,7 +361,7 @@ export function PortfolioPage() {
                   Distribution Visualization
                 </h4>
                 <p className="text-[13px] text-on-surface-variant font-body-md">
-                  Principal vs. earned yield by quarter (USD thousands)
+                  Principal vs. earned yield by quarter
                 </p>
               </div>
               <div className="flex gap-4 shrink-0">
@@ -356,38 +375,47 @@ export function PortfolioPage() {
                 </div>
               </div>
             </div>
-            <DistributionChart />
+            {loading ? (
+              <div className="h-40 bg-surface-container-high rounded-xl animate-pulse" />
+            ) : (
+              <DistributionChart data={distribution} />
+            )}
           </div>
 
-          {/* Strategy snapshot */}
           <div className="flex flex-col gap-gutter">
-            {/* Quick stats */}
             <div className="glass-card p-8 rounded-xl flex-1">
               <h4 className="font-headline-md text-[20px] text-primary mb-6">Strategy Mix</h4>
-              <div className="space-y-5">
-                {[
-                  { label: "Conservative", pct: 66, desc: "Bonds + stable pools" },
-                  { label: "Growth",       pct: 20, desc: "Private credit" },
-                  { label: "Opportunistic", pct: 14, desc: "Equities + reserve" },
-                ].map((s) => (
-                  <div key={s.label} className="flex flex-col gap-1.5">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-[13px] font-bold text-on-surface">{s.label}</span>
-                      <span className="text-[13px] font-bold text-primary">{s.pct}%</span>
+              {loading ? (
+                <div className="space-y-5">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-3 w-24 bg-surface-container-high rounded" />
+                      <div className="h-1.5 w-full bg-surface-container-high rounded" />
+                      <div className="h-2 w-32 bg-surface-container-high rounded" />
                     </div>
-                    <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-700"
-                        style={{ width: `${s.pct}%` }}
-                      />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {strategyMix.map((s: StrategyMixItem) => (
+                    <div key={s.label} className="flex flex-col gap-1.5">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-[13px] font-bold text-on-surface">{s.label}</span>
+                        <span className="text-[13px] font-bold text-primary">{s.pct}%</span>
+                      </div>
+                      <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-700"
+                          style={{ width: `${s.pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[11px] text-outline">{s.desc}</span>
                     </div>
-                    <span className="text-[11px] text-outline">{s.desc}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Next yield date */}
             <div className="bg-primary p-8 rounded-xl relative overflow-hidden">
               <svg className="absolute bottom-0 right-0 opacity-10 w-28 h-28" viewBox="0 0 100 100">
                 <circle cx="100" cy="100" r="80" fill="none" stroke="white" strokeWidth="0.5" />
@@ -397,8 +425,23 @@ export function PortfolioPage() {
                 <p className="font-subhead-caps text-[11px] text-secondary-fixed-dim tracking-[0.2em] mb-3">
                   NEXT YIELD EVENT
                 </p>
-                <h4 className="font-headline-md text-[22px] text-background mb-1">July 15, 2026</h4>
-                <p className="text-[13px] text-background/60 mb-4">Est. payout: $1,840</p>
+                {loading || !nextYieldEvent ? (
+                  <>
+                    <div className="h-7 w-40 bg-white/10 rounded animate-pulse mb-2" />
+                    <div className="h-4 w-32 bg-white/10 rounded animate-pulse mb-4" />
+                  </>
+                ) : (
+                  <>
+                    <h4 className="font-headline-md text-[22px] text-background mb-1">
+                      {fmtDate(nextYieldEvent.date)}
+                    </h4>
+                    <p className="text-[13px] text-background/60 mb-4">
+                      {nextYieldEvent.estimatedPayoutUSD > 0
+                        ? `Est. payout: $${nextYieldEvent.estimatedPayoutUSD.toFixed(2)}`
+                        : 'No pending yield events'}
+                    </p>
+                  </>
+                )}
                 <div className="flex items-center gap-2 text-secondary-container">
                   <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                     event_available

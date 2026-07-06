@@ -1,17 +1,19 @@
 import { useUser } from "@/context/UserContext";
 import { useBalance } from "@/hooks/useBalance";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import type { AssetFlowItem } from "@/lib/types";
+
+const FALLBACK_ASSETS: AssetFlowItem[] = [
+  { label: "Nomba Cash Pool (Liquid)", percentage: 100, color: "bg-outline-variant", desc: "Awaiting allocation" },
+];
 
 export function AssetFlow() {
   const { session } = useUser();
   const { balanceUSD } = useBalance(session?.userId);
+  const { assetFlow, loading } = usePortfolio(session?.userId);
 
-  const totalPoolVal = balanceUSD > 0 ? balanceUSD : 142850; // Use active balance or global pool default
-
-  const ASSET_DATA = [
-    { label: "Nomba Cash Pool (Liquid)", percentage: 15, color: "bg-outline-variant", desc: "Short term liquidity" },
-    { label: "SME Credit Bonds", percentage: 50, color: "bg-primary", desc: "Secured business lending" },
-    { label: "Sustainable Agricultural Yields", percentage: 35, color: "bg-secondary", desc: "Direct agro project loans" },
-  ] as const;
+  const totalPoolVal = balanceUSD > 0 ? balanceUSD : 142850;
+  const assets = assetFlow.length > 0 ? assetFlow : FALLBACK_ASSETS;
 
   const formatUSD = (val: number) =>
     "$" + val.toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -23,12 +25,16 @@ export function AssetFlow() {
           Asset Flow
         </h3>
         <p className="text-[12px] font-body text-on-surface-variant mb-6">
-          Allocation details for your active portfolio of <span className="font-bold text-primary">{formatUSD(totalPoolVal)}</span>
+          {loading ? (
+            "Loading..."
+          ) : (
+            <>Allocation details for your active portfolio of <span className="font-bold text-primary">{formatUSD(totalPoolVal)}</span></>
+          )}
         </p>
       </div>
 
       <div className="space-y-6">
-        {ASSET_DATA.map((asset) => {
+        {assets.map((asset) => {
           const allocationValue = totalPoolVal * (asset.percentage / 100);
           return (
             <div key={asset.label} className="flex flex-col gap-2">

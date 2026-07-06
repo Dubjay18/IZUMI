@@ -1,108 +1,12 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useUser } from "@/context/UserContext";
+import { useTransactions } from "@/hooks/useTransactions";
+import type { LedgerEntry } from "@/lib/types";
 
-/* ─── Types ─────────────────────────────────────────────────────────── */
+type FilterTab = "All History" | "Deposits" | "Withdrawals" | "Yield";
 
-type TxType = "REPAYMENT" | "DEPOSIT" | "WITHDRAWAL" | "YIELD";
-type TxStatus = "Completed" | "Pending" | "Failed";
-type TxVerification = "ZK-VERIFIED" | "STANDARD" | "AUTO";
-type FilterTab = "All History" | "Deposits" | "Withdrawals" | "Daily Splits";
-
-interface Transaction {
-  id: string;
-  name: string;
-  txnId: string;
-  type: TxType;
-  verification: TxVerification;
-  status: TxStatus;
-  amount: number; // positive = credit, negative = debit
-  date: string;
-}
-
-/* ─── Static Data ────────────────────────────────────────────────────── */
-
-const TRANSACTIONS: Transaction[] = [
-  {
-    id: "1",
-    name: "Daily Split Repayment",
-    txnId: "TXN-009827-ZK",
-    type: "REPAYMENT",
-    verification: "ZK-VERIFIED",
-    status: "Completed",
-    amount: -1420.0,
-    date: "Jul 6, 2026",
-  },
-  {
-    id: "2",
-    name: "Liquidity Deposit",
-    txnId: "TXN-009826-WF",
-    type: "DEPOSIT",
-    verification: "STANDARD",
-    status: "Pending",
-    amount: 50000.0,
-    date: "Jul 6, 2026",
-  },
-  {
-    id: "3",
-    name: "External Withdrawal",
-    txnId: "TXN-009825-AM",
-    type: "WITHDRAWAL",
-    verification: "ZK-VERIFIED",
-    status: "Completed",
-    amount: -24500.0,
-    date: "Jul 5, 2026",
-  },
-  {
-    id: "4",
-    name: "Daily Split Repayment",
-    txnId: "TXN-009824-ZK",
-    type: "REPAYMENT",
-    verification: "ZK-VERIFIED",
-    status: "Completed",
-    amount: -1420.0,
-    date: "Jul 5, 2026",
-  },
-  {
-    id: "5",
-    name: "Treasury Yield",
-    txnId: "TXN-009823-TY",
-    type: "YIELD",
-    verification: "AUTO",
-    status: "Completed",
-    amount: 412.18,
-    date: "Jul 4, 2026",
-  },
-  {
-    id: "6",
-    name: "Liquidity Deposit",
-    txnId: "TXN-009822-WF",
-    type: "DEPOSIT",
-    verification: "STANDARD",
-    status: "Completed",
-    amount: 15000.0,
-    date: "Jul 4, 2026",
-  },
-  {
-    id: "7",
-    name: "Daily Split Repayment",
-    txnId: "TXN-009821-ZK",
-    type: "REPAYMENT",
-    verification: "ZK-VERIFIED",
-    status: "Completed",
-    amount: -1420.0,
-    date: "Jul 3, 2026",
-  },
-  {
-    id: "8",
-    name: "External Withdrawal",
-    txnId: "TXN-009820-AM",
-    type: "WITHDRAWAL",
-    verification: "ZK-VERIFIED",
-    status: "Completed",
-    amount: -8000.0,
-    date: "Jul 3, 2026",
-  },
-];
+const PAGE_SIZE = 20;
 
 const NOTIFICATIONS = [
   {
@@ -135,24 +39,46 @@ const NOTIFICATIONS = [
   },
 ];
 
-const PAGE_SIZE = 5;
-
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-function fmt(amount: number) {
-  const abs = Math.abs(amount).toLocaleString("en-US", {
+const MICRO_USDC = 1_000_000;
+
+function fmtAmount(amount: string, type: string) {
+  const val = Number(amount) / MICRO_USDC;
+  const abs = val.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return `${amount >= 0 ? "+" : "-"}$${abs}`;
+  const sign = type === "DEPOSIT" || type === "YIELD" ? "+" : "-";
+  return `${sign}$${abs}`;
 }
 
-function typeToFilter(type: TxType): FilterTab | null {
-  if (type === "DEPOSIT" || type === "YIELD") return "Deposits";
-  if (type === "WITHDRAWAL") return "Withdrawals";
-  if (type === "REPAYMENT") return "Daily Splits";
-  return null;
+function typeToApiFilter(tab: FilterTab): string | undefined {
+  if (tab === "All History") return undefined;
+  if (tab === "Deposits") return "DEPOSIT";
+  if (tab === "Withdrawals") return "WITHDRAWAL";
+  if (tab === "Yield") return "YIELD";
+  return undefined;
 }
+
+function fmtDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getEntryMeta(type: string) {
+  switch (type) {
+    case "DEPOSIT": return { label: "Liquidity Deposit", icon: "south_east", verification: "STANDARD" as const };
+    case "YIELD": return { label: "Treasury Yield", icon: "payments", verification: "AUTO" as const };
+    case "WITHDRAWAL": return { label: "External Withdrawal", icon: "north_west", verification: "ZK-VERIFIED" as const };
+    default: return { label: type, icon: "swap_horiz", verification: "STANDARD" as const };
+  }
+}
+
+type TxVerification = "ZK-VERIFIED" | "STANDARD" | "AUTO";
 
 /* ─── Sub-components ─────────────────────────────────────────────────── */
 
@@ -178,13 +104,13 @@ function VerificationBadge({ v }: { v: TxVerification }) {
   );
 }
 
-function StatusBadge({ status }: { status: TxStatus }) {
-  const map: Record<TxStatus, { dot: string; text: string }> = {
-    Completed: { dot: "bg-[#1b5e20]", text: "text-[#1b5e20]" },
-    Pending: { dot: "bg-secondary animate-pulse", text: "text-secondary" },
-    Failed: { dot: "bg-error", text: "text-error" },
+function StatusBadge({ status }: { status: "COMPLETED" | "PENDING" | "FAILED" }) {
+  const map: Record<string, { dot: string; text: string }> = {
+    COMPLETED: { dot: "bg-[#1b5e20]", text: "text-[#1b5e20]" },
+    PENDING: { dot: "bg-secondary animate-pulse", text: "text-secondary" },
+    FAILED: { dot: "bg-error", text: "text-error" },
   };
-  const { dot, text } = map[status];
+  const { dot, text } = map[status] ?? map.FAILED;
   return (
     <div className="flex items-center gap-2">
       <div className={`w-1.5 h-1.5 rounded-full ${dot}`} />
@@ -196,43 +122,47 @@ function StatusBadge({ status }: { status: TxStatus }) {
 /* ─── Page ───────────────────────────────────────────────────────────── */
 
 export function TransactionHistoryPage() {
+  const { session } = useUser();
+  const {
+    entries,
+    pagination,
+    loading,
+    error,
+    setPage,
+    setFilter,
+    page,
+    filter,
+  } = useTransactions(session?.userId, PAGE_SIZE);
+
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterTab>("All History");
-  const [page, setPage] = useState(1);
 
-  const TABS: FilterTab[] = ["All History", "Deposits", "Withdrawals", "Daily Splits"];
+  const TABS: FilterTab[] = ["All History", "Deposits", "Withdrawals", "Yield"];
 
   const filtered = useMemo(() => {
-    let rows = TRANSACTIONS;
-
-    if (activeFilter !== "All History") {
-      rows = rows.filter((t) => typeToFilter(t.type) === activeFilter);
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      rows = rows.filter(
-        (t) =>
-          t.name.toLowerCase().includes(q) ||
-          t.txnId.toLowerCase().includes(q) ||
-          t.type.toLowerCase().includes(q)
-      );
-    }
-
-    return rows;
-  }, [search, activeFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    if (!search.trim()) return entries;
+    const q = search.toLowerCase();
+    return entries.filter(
+      (e) =>
+        e.type.toLowerCase().includes(q) ||
+        e.id.toLowerCase().includes(q) ||
+        (e.txHash && e.txHash.toLowerCase().includes(q))
+    );
+  }, [entries, search]);
 
   function handleFilter(tab: FilterTab) {
     setActiveFilter(tab);
-    setPage(1);
+    const apiFilter = typeToApiFilter(tab);
+    setFilter(apiFilter);
   }
+
+  const totalPages = pagination?.totalPages ?? 1;
+  const totalEntries = pagination?.total ?? 0;
+  const fromEntry = totalEntries === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const toEntry = Math.min(page * PAGE_SIZE, totalEntries);
 
   return (
     <AppLayout showCurve={false}>
-      {/* Subtle parabolic bg */}
       <div
         className="fixed top-[-10%] right-[-10%] w-[80%] h-[80%] rounded-[50%_100%] -rotate-15 -z-10 pointer-events-none"
         style={{
@@ -243,7 +173,6 @@ export function TransactionHistoryPage() {
 
       <main className="pt-10 pb-32 px-gutter md:px-container-padding max-w-[1440px] mx-auto min-h-screen">
 
-        {/* ── Page Header ─────────────────────────────────────────────── */}
         <section className="mb-section-gap">
           <div className="flex flex-col md:flex-row justify-between items-end gap-6">
             <div>
@@ -273,13 +202,10 @@ export function TransactionHistoryPage() {
           </div>
         </section>
 
-        {/* ── Body Grid ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-          {/* ── Left Sidebar ─────────────────────────────────────────── */}
           <aside className="lg:col-span-4 space-y-8">
 
-            {/* Notifications */}
             <div className="glass-panel shadow-sm">
               <div className="flex justify-between items-center p-6 pb-4">
                 <h3 className="font-headline-md text-[20px] font-bold text-primary">
@@ -326,9 +252,7 @@ export function TransactionHistoryPage() {
               </button>
             </div>
 
-            {/* Account Health Score */}
             <div className="bg-primary p-8 shadow-2xl relative overflow-hidden">
-              {/* Decorative ring */}
               <div className="absolute -right-10 -bottom-10 w-40 h-40 border border-secondary/20 rounded-full pointer-events-none" />
               <div className="absolute -right-2 -bottom-2 w-24 h-24 border border-secondary/10 rounded-full pointer-events-none" />
 
@@ -346,7 +270,6 @@ export function TransactionHistoryPage() {
                 Split repayments.
               </p>
 
-              {/* Progress bar */}
               <div className="mt-6 h-1 bg-white/10 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-secondary-container rounded-full"
@@ -356,13 +279,10 @@ export function TransactionHistoryPage() {
             </div>
           </aside>
 
-          {/* ── Ledger Table ─────────────────────────────────────────── */}
           <div className="lg:col-span-8">
             <div className="glass-panel shadow-sm overflow-hidden flex flex-col">
 
-              {/* Search & Filter Bar */}
               <div className="p-6 border-b border-outline-variant/30 flex flex-col md:flex-row gap-4 items-center justify-between">
-                {/* Search */}
                 <div className="relative w-full md:w-64 transition-transform duration-200 focus-within:scale-[1.02]">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
                     search
@@ -379,7 +299,6 @@ export function TransactionHistoryPage() {
                   />
                 </div>
 
-                {/* Filter tabs */}
                 <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 no-scrollbar">
                   {TABS.map((tab) => (
                     <button
@@ -397,7 +316,12 @@ export function TransactionHistoryPage() {
                 </div>
               </div>
 
-              {/* Table */}
+              {error && (
+                <div className="mx-6 mt-4 p-3 bg-error/10 border border-error/30 rounded-lg text-error text-sm font-body">
+                  {error}
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -417,7 +341,22 @@ export function TransactionHistoryPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/20">
-                    {paginated.length === 0 ? (
+                    {loading && filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={5}>
+                          <div className="p-12 space-y-4">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="flex gap-4 items-center">
+                                <div className="h-4 w-24 bg-surface-container-high rounded animate-pulse" />
+                                <div className="h-4 w-16 bg-surface-container-high rounded animate-pulse" />
+                                <div className="h-4 w-20 bg-surface-container-high rounded animate-pulse" />
+                                <div className="h-4 w-12 bg-surface-container-high rounded animate-pulse ml-auto" />
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filtered.length === 0 ? (
                       <tr>
                         <td
                           colSpan={5}
@@ -427,50 +366,46 @@ export function TransactionHistoryPage() {
                         </td>
                       </tr>
                     ) : (
-                      paginated.map((tx) => {
-                        const isCredit = tx.amount >= 0;
+                      filtered.map((entry: LedgerEntry) => {
+                        const meta = getEntryMeta(entry.type);
+                        const isCredit = entry.type === "DEPOSIT" || entry.type === "YIELD";
                         return (
                           <tr
-                            key={tx.id}
+                            key={entry.id}
                             className="hover:bg-surface-container-low transition-colors cursor-pointer group"
                           >
-                            {/* Name + ID */}
                             <td className="p-6">
                               <div className="flex flex-col gap-0.5">
                                 <span className="font-body-md text-sm font-bold text-primary group-hover:text-on-primary-fixed-variant transition-colors">
-                                  {tx.name}
+                                  {meta.label}
                                 </span>
                                 <span className="text-[10px] text-outline font-mono">
-                                  {tx.txnId}
+                                  {fmtDate(entry.createdAt)}
                                 </span>
                               </div>
                             </td>
 
-                            {/* Type chip */}
                             <td className="p-6">
                               <span className="bg-surface-container-high px-2 py-1 text-[10px] font-bold text-on-surface-variant tracking-wider">
-                                {tx.type}
+                                {entry.type}
                               </span>
                             </td>
 
-                            {/* Verification */}
                             <td className="p-6">
-                              <VerificationBadge v={tx.verification} />
+                              <VerificationBadge v={meta.verification} />
                             </td>
 
-                            {/* Status */}
                             <td className="p-6">
-                              <StatusBadge status={tx.status} />
+                              <StatusBadge status={entry.status as "COMPLETED" | "PENDING" | "FAILED"} />
                             </td>
 
-                            {/* Amount */}
                             <td className="p-6 text-right">
                               <span
                                 className={`font-body-md text-sm font-bold ${
                                   isCredit ? "text-[#1b5e20]" : "text-primary"
                                 }`}
                               >
-                                {fmt(tx.amount)}
+                                {fmtAmount(entry.amount, entry.type)}
                               </span>
                             </td>
                           </tr>
@@ -481,28 +416,24 @@ export function TransactionHistoryPage() {
                 </table>
               </div>
 
-              {/* Pagination Footer */}
               <div className="p-6 border-t border-outline-variant/30 flex items-center justify-between gap-4">
                 <p className="text-[11px] text-outline">
-                  Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to{" "}
-                  {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}{" "}
-                  transactions
+                  {loading
+                    ? "Loading..."
+                    : `Showing ${fromEntry} to ${toEntry} of ${totalEntries} transactions`}
                 </p>
 
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
+                    onClick={() => setPage(page - 1)}
+                    disabled={page <= 1 || loading}
                     className="p-2 hover:bg-surface-container-low rounded transition-all material-symbols-outlined text-primary disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     chevron_left
                   </button>
 
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .slice(
-                      Math.max(0, page - 2),
-                      Math.min(totalPages, page + 1)
-                    )
+                    .slice(Math.max(0, page - 2), Math.min(totalPages, page + 1))
                     .map((p) => (
                       <button
                         key={p}
@@ -518,8 +449,8 @@ export function TransactionHistoryPage() {
                     ))}
 
                   <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
+                    onClick={() => setPage(page + 1)}
+                    disabled={page >= totalPages || loading}
                     className="p-2 hover:bg-surface-container-low rounded transition-all material-symbols-outlined text-primary disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     chevron_right

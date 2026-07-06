@@ -28,6 +28,46 @@ await app.register(loanRoutes);
 await app.register(saverRoutes);
 await app.register(webhookRoutes);
 
+// Vault / Community Stats
+app.get('/vault/stats', async (request, reply) => {
+  try {
+    const { db } = await import('./services/db.service.js');
+
+    const [totalUsers, allEntries] = await Promise.all([
+      db.user.count({ where: { role: 'SAVER' } }),
+      db.ledger.findMany({
+        where: { status: 'COMPLETED' },
+        select: { type: true, amount: true },
+      }),
+    ]);
+
+    let totalDepositedUSD = 0;
+    let totalYieldUSD = 0;
+    let totalWithdrawnUSD = 0;
+
+    for (const entry of allEntries) {
+      const val = Number(entry.amount) / 1_000_000;
+      if (entry.type === 'DEPOSIT') totalDepositedUSD += val;
+      else if (entry.type === 'YIELD') totalYieldUSD += val;
+      else if (entry.type === 'WITHDRAWAL') totalWithdrawnUSD += val;
+    }
+
+    const tvl = totalDepositedUSD + totalYieldUSD - totalWithdrawnUSD;
+
+    return {
+      totalSavers: totalUsers,
+      totalValueLockedUSD: Math.round(tvl * 100) / 100,
+      totalYieldDistributedUSD: Math.round(totalYieldUSD * 100) / 100,
+      totalDepositedUSD: Math.round(totalDepositedUSD * 100) / 100,
+      totalWithdrawnUSD: Math.round(totalWithdrawnUSD * 100) / 100,
+      activePositions: totalUsers,
+    };
+  } catch (error) {
+    app.log.error(error);
+    return reply.code(500).send({ error: `Failed to fetch vault stats: ${(error as Error).message}` });
+  }
+});
+
 // Test Credit Scoring Endpoint
 app.post('/test-ai', async (request, reply) => {
   try {
