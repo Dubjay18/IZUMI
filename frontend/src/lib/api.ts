@@ -1,6 +1,7 @@
-// ─── Typed API client — all backend calls go through here ────────────────────
-
-const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
+const BASE_URL = 
+  (import.meta.env.VITE_API_URL as string) || 
+  (import.meta.env.VITE_API_BASE_URL as string) || 
+  "http://localhost:3000";
 
 class ApiError extends Error {
   public status: number;
