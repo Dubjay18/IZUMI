@@ -36,6 +36,8 @@ export function DepositPage() {
 
   const selected = DURATION_OPTIONS.find((d) => d.id === selectedId)!;
 
+ 
+
   return (
     <AppLayout>
       <main className="py-8 px-8 max-w-[1280px] mx-auto">

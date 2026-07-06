@@ -20,8 +20,8 @@ function stepIndex(step: ProofStep): number {
 export function ZKProverWidget() {
   const { session } = useUser();
   const [bvn, setBvn] = useState("");
-  const [showInput, setShowInput] = useState(false);
   const [proofStep, setProofStep] = useState<ProofStep>("idle");
+  const [showInput, setShowInput] = useState(false);
   const [commitment, setCommitment] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +70,7 @@ export function ZKProverWidget() {
 
       {/* Heading */}
       <div className="max-w-md mx-auto space-y-2">
-        <h1 className="font-display text-[32px] font-semibold text-primary leading-tight">Compliance Shield</h1>
+        <h1 className="font-display text-headline-md font-semibold text-primary leading-tight">Compliance Shield</h1>
         <p className="text-on-surface-variant font-body leading-relaxed">
           Generate a zero-knowledge proof of regulatory standing without revealing your underlying sensitive data.
         </p>
@@ -89,12 +89,12 @@ export function ZKProverWidget() {
                 } ${isCurrent ? "animate-pulse" : ""}`}>
                   <span className="material-symbols-outlined text-[20px]">{step.icon}</span>
                 </div>
-                <span className={`text-[12px] font-body ${isActive ? "font-bold text-primary" : "font-semibold text-on-surface-variant"}`}>
+                <span className={`text-label-sm font-body ${isActive ? "font-bold text-primary" : "font-semibold text-on-surface-variant"}`}>
                   {step.label}
                 </span>
               </div>
               {index < STEP_LABELS.length - 1 && (
-                <div className={`w-12 h-[2px] mb-6 transition-colors ${isActive ? "bg-primary" : "bg-outline-variant"}`} />
+                <div className={`w-12 h-0.5 mb-6 transition-colors ${isActive ? "bg-primary" : "bg-outline-variant"}`} />
               )}
             </div>
           );
@@ -107,7 +107,7 @@ export function ZKProverWidget() {
           <div className="space-y-4 text-left">
             <div className="flex items-center gap-2 text-green-600">
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-              <p className="font-body font-bold text-[14px]">ZK Proof Generated Successfully</p>
+              <p className="font-body font-bold text-subhead-caps">ZK Proof Generated Successfully</p>
             </div>
             <div className="p-4 bg-surface-container-highest rounded-xl border border-outline-variant/40">
               <p className="text-[11px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant mb-1">Commitment Hash (Public)</p>
@@ -128,7 +128,7 @@ export function ZKProverWidget() {
             {showInput ? (
               <div className="space-y-4 text-left">
                 <div>
-                  <label className="text-[12px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">
+                  <label className="text-label-sm font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">
                     BVN (stays on your device)
                   </label>
                   <input
@@ -143,7 +143,7 @@ export function ZKProverWidget() {
                   />
                 </div>
                 <div className="flex items-start gap-2 p-3 bg-secondary-fixed/10 rounded-lg border border-secondary/20">
-                  <span className="material-symbols-outlined text-secondary text-[16px] mt-0.5">lock</span>
+                  <span className="material-symbols-outlined text-secondary text-body-md mt-0.5">lock</span>
                   <p className="text-[11px] font-body text-on-surface-variant leading-relaxed">
                     Only a SHA-256 commitment is computed locally. Your BVN is <strong>never sent</strong> to any server.
                   </p>
@@ -153,10 +153,10 @@ export function ZKProverWidget() {
             ) : (
               <div className="flex items-center justify-between text-left">
                 <div>
-                  <p className="text-[12px] font-body font-bold text-primary">
+                  <p className="text-label-sm font-body font-bold text-primary">
                     {session ? `KYC Status: ${session.kycStatus}` : "KYC Hash Validated"}
                   </p>
-                  <p className="text-[12px] font-body text-on-surface-variant italic">
+                  <p className="text-label-sm font-body text-on-surface-variant italic">
                     {session ? session.email : "Izumi-Internal-0041-X"}
                   </p>
                 </div>
@@ -169,7 +169,7 @@ export function ZKProverWidget() {
             {!showInput ? (
               <button
                 onClick={() => setShowInput(true)}
-                className="w-full bg-primary text-secondary-container py-4 px-8 rounded-full text-[14px] font-body font-semibold uppercase tracking-[0.15em] hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3"
+                className="w-full bg-primary text-secondary-container py-4 px-8 rounded-full text-subhead-caps font-body font-semibold uppercase tracking-[0.15em] hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3"
               >
                 GENERATE PRIVACY SHIELD
                 <span className="material-symbols-outlined">arrow_forward</span>
@@ -178,7 +178,7 @@ export function ZKProverWidget() {
               <button
                 onClick={handleGenerate}
                 disabled={isProcessing || bvn.length !== 11}
-                className="w-full bg-primary text-secondary-container py-4 px-8 rounded-full text-[14px] font-body font-semibold uppercase tracking-[0.15em] hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-primary text-secondary-container py-4 px-8 rounded-full text-subhead-caps font-body font-semibold uppercase tracking-[0.15em] hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
                   <><span className="material-symbols-outlined animate-spin">progress_activity</span>
@@ -198,3 +198,4 @@ export function ZKProverWidget() {
     </div>
   );
 }
+

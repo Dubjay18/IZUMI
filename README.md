@@ -43,5 +43,6 @@ IZUMI decouples transaction execution, risk assessment, and identity verificatio
 
 ## 🚀 Deployment & Operations
 
+* Refer to the [Stitch AI User Interface Mockups](https://stitch.withgoogle.com/u/1/projects/6024950968604456215?pli=1) to view our frontend dashboard designs.
 * Refer to the [Developer Handbook](file:///home/adeyemi/Documents/Work/IZUMI/DEVELOPER_HANDBOOK.md) for endpoint documentation, schema diagrams, and sequence flows.
 * Refer to the [Deployment Guide](file:///home/adeyemi/Documents/Work/IZUMI/DEPLOYMENT.md) to initialize the database and host the containerized server on Railway or Render.

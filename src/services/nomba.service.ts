@@ -67,9 +67,10 @@ export class NombaService {
     }
 
     const data = await response.json() as any;
-    this.token = data.access_token;
+    const authData = data.data || {};
+    this.token = authData.access_token;
     // Cache token expiration (expires_in is in seconds, convert to absolute ms)
-    const expiresIn = Number(data.expires_in || 3600);
+    const expiresIn = Number(authData.expires_in || 3600);
     this.tokenExpiry = Date.now() + expiresIn * 1000;
 
     return this.token!;
