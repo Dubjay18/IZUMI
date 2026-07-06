@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { DurationCard } from "@/components/dashboard/DurationCard";
 import { VirtualAccountCard } from "@/components/dashboard/VirtualAccountCard";
+import { useUser } from "@/context/UserContext";
 
 const DURATION_OPTIONS = [
   {
@@ -29,6 +31,8 @@ const DURATION_OPTIONS = [
 
 export function DepositPage() {
   const [selectedId, setSelectedId] = useState("30");
+  const { session } = useUser();
+  const navigate = useNavigate();
 
   const selected = DURATION_OPTIONS.find((d) => d.id === selectedId)!;
 
@@ -72,15 +76,39 @@ export function DepositPage() {
 
           {/* Right Column: Virtual Account Card */}
           <div className="col-span-12 md:col-span-7">
-            <VirtualAccountCard
-              accountNumber="0092384755"
-              bankName="Izumi Institutional Bank"
-              accountName="IZM_PORTAL_USER_482"
-              selectedDuration={selected.duration}
-            />
+            {session?.virtualAccount ? (
+              <VirtualAccountCard
+                accountNumber={session.virtualAccount.accountNumber}
+                bankName={session.virtualAccount.bankName}
+                accountName={session.virtualAccount.accountName}
+                selectedDuration={selected.duration}
+              />
+            ) : (
+              /* Unauthenticated / no account yet */
+              <div className="bg-primary text-on-primary p-12 rounded-2xl shadow-2xl min-h-[600px] flex flex-col items-center justify-center text-center gap-6">
+                <span className="material-symbols-outlined text-[64px] opacity-60" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  account_balance
+                </span>
+                <div>
+                  <h3 className="font-display text-[28px] font-semibold text-secondary-fixed mb-3">
+                    No Virtual Account Yet
+                  </h3>
+                  <p className="font-body text-on-primary-container leading-relaxed max-w-xs">
+                    Complete saver onboarding to receive your personal Nomba virtual account for deposits.
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate("/onboard")}
+                  className="px-10 py-3.5 bg-secondary-container text-on-secondary-fixed font-bold rounded-xl text-[14px] font-body hover:shadow-lg active:scale-[0.98] transition-all"
+                >
+                  Start Onboarding
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>
     </AppLayout>
   );
 }
+

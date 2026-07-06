@@ -200,10 +200,32 @@ export async function loanRoutes(app: FastifyInstance) {
     }
   });
 
+  // Get all loan applications for a borrower
+  app.get('/borrowers/:id/loans', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+
+      if (!id) {
+        return reply.code(400).send({ error: 'Missing borrower id' });
+      }
+
+      const loans = await db.loanApplication.findMany({
+        where: { borrowerId: id },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return loans;
+    } catch (error) {
+      app.log.error(error);
+      return reply.code(500).send({ error: `Failed to fetch loans: ${(error as Error).message}` });
+    }
+  });
+
   // Accept a scored loan application and disburse funds
   app.post('/loans/:id/accept', async (request, reply) => {
     try {
       const { id } = request.params as any;
+      const { splitIntensity } = (request.body as any) ?? {};
 
       if (!id) {
         return reply.code(400).send({ error: 'Missing loan application id' });
@@ -285,13 +307,18 @@ export async function loanRoutes(app: FastifyInstance) {
         payoutRef
       );
 
-      // 7. Update loan application status to ACTIVE
+      // 7. Store splitIntensity and update loan application status to ACTIVE
+      const existingAnalysis = (loan.aiAnalysis as Record<string, unknown>) ?? {};
       const updatedLoan = await db.loanApplication.update({
         where: { id },
         data: {
           status: 'ACTIVE',
-          contractBondId: txHash // store transaction hash as bond identifier
-        }
+          contractBondId: txHash, // store transaction hash as bond identifier
+          aiAnalysis: {
+            ...existingAnalysis,
+            splitIntensity: splitIntensity ?? 15,
+          },
+        },
       });
 
       return {

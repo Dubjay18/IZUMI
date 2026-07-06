@@ -1,4 +1,15 @@
+import { useUser } from "@/context/UserContext";
+import { useBalance } from "@/hooks/useBalance";
+
 export function AvailableLiquidity() {
+  const { session } = useUser();
+  const { balanceUSD, loading } = useBalance(session?.userId);
+
+  const whole = Math.floor(balanceUSD);
+  const cents = String(Math.round((balanceUSD - whole) * 100)).padStart(2, "0");
+
+  const formattedWhole = whole.toLocaleString("en-US");
+
   return (
     <section className="mb-[80px]">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -24,16 +35,20 @@ export function AvailableLiquidity() {
           <span className="text-[12px] font-body font-semibold text-primary-fixed-dim uppercase tracking-[0.15em] mb-4">
             Current USD Balance
           </span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[40px] font-display font-bold">$142,850</span>
-            <span className="text-xl text-primary-fixed-dim">.64</span>
-          </div>
+          {loading ? (
+            <div className="h-12 w-48 bg-white/10 rounded-xl animate-pulse" />
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="text-[40px] font-display font-bold">${formattedWhole}</span>
+              <span className="text-xl text-primary-fixed-dim">.{cents}</span>
+            </div>
+          )}
           <div className="mt-4 flex items-center gap-2 text-primary-fixed">
             <span className="material-symbols-outlined text-sm">
               trending_up
             </span>
             <span className="text-[12px] font-body font-medium">
-              +2.4% from last session
+              {session ? "Live balance" : "+2.4% from last session"}
             </span>
           </div>
         </div>
@@ -41,3 +56,4 @@ export function AvailableLiquidity() {
     </section>
   );
 }
+

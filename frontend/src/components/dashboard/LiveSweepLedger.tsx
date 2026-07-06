@@ -1,35 +1,63 @@
-const LEDGER_ROWS = [
-  {
-    timestamp: "Today, 09:12 AM",
-    type: "Daily Principal Sweep",
-    typeStyle:
-      "bg-primary/5 text-primary border border-primary/10",
-    amount: "₦250,000.00",
-  },
-  {
-    timestamp: "Yesterday, 11:45 PM",
-    type: "Interest Adjustment",
-    typeStyle:
-      "bg-secondary-container/10 text-secondary border border-secondary/20",
-    amount: "₦42,108.45",
-  },
-  {
-    timestamp: "May 21, 2024",
-    type: "Daily Principal Sweep",
-    typeStyle:
-      "bg-primary/5 text-primary border border-primary/10",
-    amount: "₦250,000.00",
-  },
-  {
-    timestamp: "May 20, 2024",
-    type: "Manual Injection",
-    typeStyle:
-      "bg-surface-container-high text-on-surface-variant",
-    amount: "₦1,500,000.00",
-  },
-] as const;
+import { useUser } from "@/context/UserContext";
+import { useLoans } from "@/hooks/useLoans";
 
-export function LiveSweepLedger() {
+interface LiveSweepLedgerProps {
+  percent: number;
+}
+
+export function LiveSweepLedger({ percent }: LiveSweepLedgerProps) {
+  const { session } = useUser();
+  const { activeLoan } = useLoans(session?.borrowerId);
+
+  // Default revenue baseline is ₦1,200,000 monthly
+  const monthlyRevenue = activeLoan?.amountRequested
+    ? Number(activeLoan.amountRequested)
+    : 1200000;
+
+  // Calculate daily sweep cap
+  const dailySweepCap = (percent / 100) * (monthlyRevenue / 30);
+  const formattedCap = dailySweepCap.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const interestAdjustment = (dailySweepCap * 0.12).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const manualInjection = (monthlyRevenue * 0.5).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  const LEDGER_ROWS = [
+    {
+      timestamp: "Today, 11:59 PM (Scheduled)",
+      type: "Daily Principal Sweep",
+      typeStyle: "bg-primary/5 text-primary border border-primary/10",
+      amount: `₦${formattedCap}`,
+    },
+    {
+      timestamp: "Yesterday, 11:59 PM",
+      type: "Daily Principal Sweep",
+      typeStyle: "bg-primary/5 text-primary border border-primary/10",
+      amount: `₦${formattedCap}`,
+    },
+    {
+      timestamp: "2 days ago, 11:59 PM",
+      type: "Interest Adjustment",
+      typeStyle: "bg-secondary-container/10 text-secondary border border-secondary/20",
+      amount: `₦${interestAdjustment}`,
+    },
+    {
+      timestamp: "3 days ago, 10:14 AM",
+      type: "Manual Injection",
+      typeStyle: "bg-surface-container-high text-on-surface-variant border border-outline-variant/30",
+      amount: `₦${manualInjection}`,
+    },
+  ] as const;
+
   return (
     <div>
       <h3 className="text-[32px] font-display font-semibold text-primary mb-[8px]">
@@ -54,20 +82,20 @@ export function LiveSweepLedger() {
           <tbody className="divide-y divide-outline-variant/10">
             {LEDGER_ROWS.map((row) => (
               <tr
-                key={row.timestamp + row.amount}
+                key={row.timestamp}
                 className="group hover:bg-surface-container-low transition-colors"
               >
-                <td className="py-4 text-[16px] font-body text-primary">
+                <td className="py-4 text-[14px] font-body text-primary font-medium">
                   {row.timestamp}
                 </td>
                 <td className="py-4">
                   <span
-                    className={`px-2 py-1 rounded text-xs font-bold ${row.typeStyle}`}
+                    className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${row.typeStyle}`}
                   >
                     {row.type}
                   </span>
                 </td>
-                <td className="py-4 text-[16px] font-body text-primary font-bold text-right">
+                <td className="py-4 text-[15px] font-body text-primary font-bold text-right font-mono">
                   {row.amount}
                 </td>
               </tr>

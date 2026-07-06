@@ -5,8 +5,18 @@ import { walletService } from '../services/wallet.service.js';
 import { blockchainService, CONTRACTS, ABIS } from '../services/blockchain.service.js';
 import { nombaService } from '../services/nomba.service.js';
 import { zkService } from '../services/zk.service.js';
-
 export async function saverRoutes(app: FastifyInstance) {
+  // Get Next Derivation Address (used by ZK KYC binding)
+  app.get('/savers/next-address', async (request, reply) => {
+    try {
+      const address = await walletService.getNextDerivationAddress();
+      return { address };
+    } catch (error) {
+      app.log.error(error);
+      return reply.code(500).send({ error: (error as Error).message });
+    }
+  });
+
   // Onboard Saver
   app.post('/savers/onboard', async (request, reply) => {
     const unlock = await walletService.registrationMutex.lock();
@@ -186,6 +196,33 @@ export async function saverRoutes(app: FastifyInstance) {
     } catch (error) {
       app.log.error(error);
       return reply.code(500).send({ error: `Failed to calculate balance: ${(error as Error).message}` });
+    }
+  });
+
+  // Saver Ledger History
+  app.get('/savers/:id/ledger', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+
+      if (!id) {
+        return reply.code(400).send({ error: 'Missing saver user id' });
+      }
+
+      const user = await db.user.findUnique({ where: { id } });
+      if (!user) {
+        return reply.code(404).send({ error: 'Saver not found' });
+      }
+
+      const entries = await db.ledger.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      return entries;
+    } catch (error) {
+      app.log.error(error);
+      return reply.code(500).send({ error: `Failed to fetch ledger: ${(error as Error).message}` });
     }
   });
 

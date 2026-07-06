@@ -1,18 +1,45 @@
 import { Link, useLocation } from "react-router-dom";
+import { useUser } from "@/context/UserContext";
 
 const LOGO_SRC =
   "https://lh3.googleusercontent.com/aida/AP1WRLsnnW5QHpNXUie_IG7utyOUeF6-kEGW_OED3NyOFV18kvh3PqIAwmKCg3Ywu9qK_TtlUGQfTjLcobo_pBkXQ_wVpmaQxU-LpzybVcr82RaEcluvTjx8TfnRHxQBD7WS_D5o7MJsE49OXm61IxjiB_8w3us59IEAltIpnAKgfxvc1Nsd-Kc6zNH5u63pg7skERonRnSCXj_2O5VfeBNRy5ena82kmxamqX1xNcHaTU-Pmgl3KFKHu0NdgxM";
 
-const NAV_LINKS = [
+const SAVER_LINKS = [
   { label: "Dashboard",  icon: "dashboard",               href: "/dashboard" },
   { label: "Invest",     icon: "account_balance_wallet",  href: "/dashboard/deposit" },
   { label: "Withdraw",   icon: "payments",                href: "/withdrawal" },
+  { label: "Portfolio",  icon: "pie_chart",               href: "/dashboard/portfolio" },
+  { label: "History",    icon: "receipt_long",            href: "/dashboard/history" },
   { label: "Compliance", icon: "verified_user",           href: "/compliance" },
-  { label: "Settings",   icon: "settings",                href: "#" },
+] as const;
+
+const BORROWER_LINKS = [
+  { label: "Dashboard",     icon: "dashboard",        href: "/borrow/dashboard" },
+  { label: "Apply for Loan", icon: "request_quote",   href: "/borrow/apply" },
+  { label: "Amortization",  icon: "bar_chart",        href: "/dashboard/amortization" },
+  { label: "Ingestion",     icon: "sync",             href: "/ingestion" },
+  { label: "Ledger",        icon: "receipt_long",     href: "/borrow/ledger" },
+  { label: "AI Advisor",    icon: "smart_toy",        href: "/borrow/advisor" },
+  { label: "Settings",      icon: "settings",         href: "/borrow/settings" },
+] as const;
+
+const ADMIN_LINKS = [
+  { label: "Underwriter",   icon: "manage_accounts",  href: "/underwriter/admin" },
+  { label: "ZK Compliance", icon: "shield_lock",      href: "/compliance" },
+  { label: "Vault Health",  icon: "monitoring",       href: "/admin/vault" },
+  { label: "Checklist",     icon: "checklist",        href: "/admin/compliance-checklist" },
+  { label: "POS Manager",   icon: "point_of_sale",    href: "/admin/pos-manager" },
 ] as const;
 
 export function AppSidebar() {
   const location = useLocation();
+  const { session } = useUser();
+  const NAV_LINKS =
+    session?.role === "UNDERWRITER"
+      ? ADMIN_LINKS
+      : session?.role === "BORROWER"
+      ? BORROWER_LINKS
+      : SAVER_LINKS;
 
   const isActive = (href: string) => {
     if (href === "#") return false;
@@ -71,10 +98,10 @@ export function AppSidebar() {
           </span>
         </div>
         <h4 className="text-[11px] font-body font-semibold text-secondary uppercase tracking-[0.15em] mb-1">
-          Concierge
+          {session ? session.name.split(" ")[0] : "Concierge"}
         </h4>
         <p className="text-[13px] font-body text-on-surface mb-4 leading-snug">
-          Dedicated advisor online.
+          {session ? `${session.role} · ${session.kycStatus}` : "Dedicated advisor online."}
         </p>
         <button className="w-full bg-primary text-secondary-fixed py-2 rounded-lg text-[11px] font-body font-bold hover:shadow-lg transition-all active:scale-95">
           Message Izumi
