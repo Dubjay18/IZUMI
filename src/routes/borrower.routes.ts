@@ -4,6 +4,7 @@ import { complianceService } from '../services/compliance.service.js';
 import { walletService } from '../services/wallet.service.js';
 import { zkService } from '../services/zk.service.js';
 import { aiService } from '../services/ai.service.js';
+import { cryptoService } from '../services/crypto.service.js';
 
 export async function borrowerRoutes(app: FastifyInstance) {
   app.post('/borrowers/onboard', async (request, reply) => {
@@ -28,16 +29,28 @@ export async function borrowerRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: 'Either directorBvn or zkProof must be provided' });
       }
 
-      // Check if user or borrower already registered
-      const existingUser = await db.user.findFirst({
-        where: {
-          OR: [
-            { email },
-            ...(directorBvn ? [{ bvn: directorBvn }] : [])
-          ]
-        },
+      // Check if user or borrower already registered by email
+      let existingUser = await db.user.findUnique({
+        where: { email },
         include: { borrowerProfile: true }
       });
+
+      // If not found by email, but directorBvn is provided, check if BVN is already registered to someone else (decrypted match)
+      if (!existingUser && directorBvn) {
+        const allUsersWithBvn = await db.user.findMany({
+          where: { bvn: { not: null } },
+          include: { borrowerProfile: true }
+        });
+        for (const u of allUsersWithBvn) {
+          if (u.bvn) {
+            const decryptedBvn = cryptoService.decrypt(u.bvn);
+            if (decryptedBvn === directorBvn) {
+              existingUser = u;
+              break;
+            }
+          }
+        }
+      }
 
       if (existingUser?.borrowerProfile) {
         return reply.code(400).send({ error: 'Borrower already registered under this email or BVN' });
@@ -69,6 +82,8 @@ export async function borrowerRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: `KYB Failed: ${tinCheck.message}` });
       }
 
+      const encryptedBvn = directorBvn ? cryptoService.encrypt(directorBvn) : null;
+
       // 2. Persist User and Borrower records in database
       const user = await db.$transaction(async (prisma) => {
         // Upsert user if existing saver is registering as borrower, or create new
@@ -77,14 +92,14 @@ export async function borrowerRoutes(app: FastifyInstance) {
           update: {
             role: 'BORROWER',
             kycStatus: 'VERIFIED',
-            bvn: directorBvn || null,
+            bvn: encryptedBvn,
           },
           create: {
             email,
             name,
             role: 'BORROWER',
             kycStatus: 'VERIFIED',
-            bvn: directorBvn || null,
+            bvn: encryptedBvn,
           }
         });
 

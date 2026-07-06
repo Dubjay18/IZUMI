@@ -5,6 +5,8 @@ import { walletService } from '../services/wallet.service.js';
 import { blockchainService, CONTRACTS, ABIS } from '../services/blockchain.service.js';
 import { nombaService } from '../services/nomba.service.js';
 import { zkService } from '../services/zk.service.js';
+import { cryptoService } from '../services/crypto.service.js';
+
 export async function saverRoutes(app: FastifyInstance) {
   // Get Next Derivation Address (used by ZK KYC binding)
   app.get('/savers/next-address', async (request, reply) => {
@@ -63,6 +65,9 @@ export async function saverRoutes(app: FastifyInstance) {
         }
       }
 
+      const encryptedBvn = bvn ? cryptoService.encrypt(bvn) : null;
+      const encryptedNin = nin ? cryptoService.encrypt(nin) : null;
+
       // 3. Register User and derive wallet address atomically
       const result = await db.$transaction(async (prisma) => {
         const user = await prisma.user.upsert({
@@ -70,16 +75,16 @@ export async function saverRoutes(app: FastifyInstance) {
           update: {
             role: 'SAVER',
             kycStatus: 'VERIFIED',
-            bvn: bvn || null,
-            nin: nin || null
+            bvn: encryptedBvn,
+            nin: encryptedNin
           },
           create: {
             email,
             name,
             role: 'SAVER',
             kycStatus: 'VERIFIED',
-            bvn: bvn || null,
-            nin: nin || null
+            bvn: encryptedBvn,
+            nin: encryptedNin
           }
         });
 
