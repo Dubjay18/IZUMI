@@ -330,4 +330,147 @@ export async function saverRoutes(app: FastifyInstance) {
       return reply.code(500).send({ error: `Withdrawal failed: ${(error as Error).message}` });
     }
   });
+
+  // GET /savers/:id/dashboard
+  app.get('/savers/:id/dashboard', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const user = await db.user.findUnique({
+        where: { id },
+        include: { ledger: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+
+      // Calculate balance and yield statistics
+      let totalSavingsUSD = 0;
+      let totalYieldUSD = 0;
+
+      for (const entry of user.ledger) {
+        if (entry.status === 'COMPLETED') {
+          const val = Number(entry.amount) / 100; // stored in cents
+          if (entry.type === 'DEPOSIT') {
+            totalSavingsUSD += val;
+          } else if (entry.type === 'WITHDRAWAL') {
+            totalSavingsUSD -= val;
+          } else if (entry.type === 'YIELD') {
+            totalYieldUSD += val;
+          }
+        }
+      }
+
+      // Total protocol metrics for share calculations
+      const globalDepositsList = await db.ledger.findMany({
+        where: { type: 'DEPOSIT', status: 'COMPLETED' }
+      });
+      const globalWithdrawalsList = await db.ledger.findMany({
+        where: { type: 'WITHDRAWAL', status: 'COMPLETED' }
+      });
+
+      const globalDeposits = globalDepositsList.reduce((acc, d) => acc + Number(d.amount), 0) / 100;
+      const globalWithdrawals = globalWithdrawalsList.reduce((acc, w) => acc + Number(w.amount), 0) / 100;
+      const globalTVL = Math.max(1, globalDeposits - globalWithdrawals);
+
+      const userShare = totalSavingsUSD / globalTVL;
+
+      // Calculate community impact
+      const activeLoansCount = await db.loanApplication.count({
+        where: { status: { in: ['ACTIVE', 'DISBURSED'] } }
+      });
+
+      const smeLoansFunded = Math.max(1, Math.round(activeLoansCount * (userShare || 0.1)));
+      const jobsSupported = smeLoansFunded * 5; // assume 5 jobs per loan
+
+      // Mock yield projections for the chart
+      const yieldForecast = Array.from({ length: 6 }, (_, idx) => {
+        const date = new Date();
+        date.setMonth(date.getMonth() + idx);
+        const projectedValue = totalSavingsUSD * Math.pow(1 + 0.055 / 12, idx + 1);
+        return {
+          month: date.toLocaleString('default', { month: 'short' }),
+          balance: parseFloat(projectedValue.toFixed(2)),
+          yield: parseFloat((projectedValue - totalSavingsUSD).toFixed(2))
+        };
+      });
+
+      return {
+        totalSavingsUSD: parseFloat(totalSavingsUSD.toFixed(2)),
+        totalYieldUSD: parseFloat(totalYieldUSD.toFixed(2)),
+        communityImpact: {
+          smeLoansFunded,
+          saverSharePercent: parseFloat((userShare * 100).toFixed(2)) || 0,
+          totalJobsSupported: jobsSupported
+        },
+        yieldForecast,
+        assetFlow: {
+          deposits: parseFloat(totalSavingsUSD.toFixed(2)),
+          withdrawals: 0 // Mocked withdrawal flow sum for MVP analytics
+        }
+      };
+
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve dashboard stats: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /savers/:id/transactions
+  app.get('/savers/:id/transactions', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const transactions = await db.ledger.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return transactions.map(t => ({
+        id: t.id,
+        type: t.type,
+        amountRaw: t.amount,
+        amountUSD: Number(t.amount) / 100,
+        status: t.status,
+        txHash: t.txHash,
+        timestamp: t.createdAt
+      }));
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve transaction ledger: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /protocol/vault-health
+  app.get('/protocol/vault-health', async (request, reply) => {
+    try {
+      const globalDepositsList = await db.ledger.findMany({
+        where: { type: 'DEPOSIT', status: 'COMPLETED' }
+      });
+      const globalWithdrawalsList = await db.ledger.findMany({
+        where: { type: 'WITHDRAWAL', status: 'COMPLETED' }
+      });
+
+      const globalDeposits = globalDepositsList.reduce((acc, d) => acc + Number(d.amount), 0) / 100;
+      const globalWithdrawals = globalWithdrawalsList.reduce((acc, w) => acc + Number(w.amount), 0) / 100;
+      const globalTVL = Math.max(100, globalDeposits - globalWithdrawals);
+
+      const activeLoansSumResult = await db.loanApplication.aggregate({
+        _sum: { amountApproved: true },
+        where: { status: { in: ['ACTIVE', 'DISBURSED'] } }
+      });
+      const activeLentUSD = Number(activeLoansSumResult._sum.amountApproved || 0);
+
+      const utilizationRate = Math.min(100, parseFloat(((activeLentUSD / globalTVL) * 100).toFixed(2)));
+
+      return {
+        tvlUSD: globalTVL,
+        activeLentUSD,
+        utilizationRate,
+        defaultRate: 0.00 // Default default rate is 0% for staging MVP
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve vault health: ${(err as Error).message}` });
+    }
+  });
 }

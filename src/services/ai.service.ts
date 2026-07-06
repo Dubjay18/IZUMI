@@ -129,6 +129,35 @@ export class AiService {
       }
     };
   }
+
+  async askAdvisoryQuestion(question: string, context?: string): Promise<string> {
+    if (!this.genAI) {
+      console.warn('AI Service: GEMINI_API_KEY is not configured. Returning mock advisory chat response.');
+      return `I received your question: "${question}". To optimize your cashflow and credit score, make sure you consistently route transaction volume through your Nomba POS terminals and maintain a sweep repayment rate of 10% to speed up your loan maturity. Let me know if you need specific inventory tips!`;
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const prompt = `
+        You are the "Izumi AI Credit Advisory Consultant," an AI assistant helping Nigerian micro-merchants and SMEs optimize their financial performance and manage credit scores.
+        
+        CONTEXT DETAILS:
+        ${context || 'No specific business logs available.'}
+        
+        MERCHANT QUESTION:
+        "${question}"
+        
+        INSTRUCTIONS:
+        Write a friendly, concise, and highly practical financial advice response tailored for small business owners in Nigeria. Keep the response under 4-5 sentences and focus on actionable takeaways (e.g. optimizing card sweeps, stocking, or cost reductions).
+      `;
+
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (error) {
+      console.error('Error generating AI advisory chat:', error);
+      return `Failed to analyze advisory chat via Gemini: ${(error as Error).message}`;
+    }
+  }
 }
 
 export const aiService = new AiService();

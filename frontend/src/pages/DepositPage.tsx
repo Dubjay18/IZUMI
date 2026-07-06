@@ -115,7 +115,7 @@ export function DepositPage() {
                   accountName={virtualAccount.accountName}
                   selectedDuration={selected.duration}
                 />
-                
+
                 {/* Webhook Simulation Toolbox */}
                 <div className="p-8 bg-surface-container-low border border-outline-variant/40 rounded-2xl">
                   <h4 className="font-display font-bold text-lg text-primary mb-2">Nomba Webhook Simulator</h4>

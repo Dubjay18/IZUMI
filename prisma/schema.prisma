@@ -79,6 +79,8 @@ model Borrower {
   creditScore     Int?
   creditGrade     String?
   approvedLimit   Decimal?
+  splitIntensity  Int               @default(10)
+  terminals       String[]          @default([])
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   loanApplications LoanApplication[]
