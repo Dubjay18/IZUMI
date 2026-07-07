@@ -224,9 +224,9 @@ export class NombaService {
     }
 
     const result = {
-      accountNumber: payload.data.accountNumber,
+      accountNumber: payload.data.bankAccountNumber || payload.data.accountNumber || '',
       bankName: payload.data.bankName || 'Nomba Microfinance Bank',
-      accountName: payload.data.accountName,
+      accountName: payload.data.bankAccountName || payload.data.accountName || '',
       reference: accountRef,
       merchantTxRef,
       expectedAmount: expectedAmount || null,
