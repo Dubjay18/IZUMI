@@ -1,3 +1,7 @@
+packages:
+  - "."
+  - "frontend"
+
 allowBuilds:
   '@prisma/client': false
   '@prisma/engines': false
