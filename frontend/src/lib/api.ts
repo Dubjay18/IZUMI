@@ -64,7 +64,7 @@ export const saverApi = {
   getLedger: (userId: string) =>
     request<LedgerEntry[]>(`/savers/${userId}/ledger`),
 
-  withdraw: (body: { userId: string; amountUSD: number }) =>
+  withdraw: (body: { userId: string; amountUSD: number; accountNumber: string; bankCode: string }) =>
     request<WithdrawResponse>("/savers/withdraw", {
       method: "POST",
       body: JSON.stringify(body),

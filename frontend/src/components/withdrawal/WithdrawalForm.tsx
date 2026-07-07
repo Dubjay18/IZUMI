@@ -12,6 +12,16 @@ function formatNGN(value: number): string {
   });
 }
 
+const NIGERIAN_BANKS = [
+  { code: "058", name: "GTBank" },
+  { code: "057", name: "Zenith Bank" },
+  { code: "044", name: "Access Bank" },
+  { code: "033", name: "United Bank for Africa (UBA)" },
+  { code: "035", name: "Wema Bank" },
+  { code: "090267", name: "Kuda Microfinance Bank" },
+  { code: "999992", name: "OPay Digital Services" },
+] as const;
+
 type WithdrawState = "idle" | "processing" | "success" | "error";
 
 export function WithdrawalForm() {
@@ -19,6 +29,8 @@ export function WithdrawalForm() {
   const { balanceUSD, refresh: refreshBalance } = useBalance(session?.userId);
 
   const [usdAmount, setUsdAmount] = useState<string>("");
+  const [bankCode, setBankCode] = useState<string>("058");
+  const [accountNumber, setAccountNumber] = useState<string>("");
   const [state, setState] = useState<WithdrawState>("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -44,11 +56,22 @@ export function WithdrawalForm() {
       setState("error");
       return;
     }
+    if (!accountNumber || accountNumber.length !== 10 || !/^\d+$/.test(accountNumber)) {
+      setErrorMsg("Please enter a valid 10-digit account number.");
+      setState("error");
+      return;
+    }
+
     setState("processing");
     setErrorMsg(null);
     setTxHash(null);
     try {
-      const res = await saverApi.withdraw({ userId: session.userId, amountUSD: numericValue });
+      const res = await saverApi.withdraw({
+        userId: session.userId,
+        amountUSD: numericValue,
+        accountNumber,
+        bankCode,
+      });
       setTxHash(res.txHash);
       setState("success");
       refreshBalance();
@@ -108,27 +131,46 @@ export function WithdrawalForm() {
             <form className="space-y-8" onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Destination Account */}
-                <div className="space-y-3">
-                  <label className="text-[14px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant">
-                    Destination Account
-                  </label>
-                  <div className="relative">
-                    <div className="p-4 bg-white border border-secondary/50 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-8 bg-surface-container-highest rounded flex items-center justify-center overflow-hidden">
-                          <span className="material-symbols-outlined text-secondary">credit_card</span>
-                        </div>
-                        <div>
-                          <p className="font-bold text-on-surface">{session ? session.name : "GTBank Corporate"}</p>
-                          <p className="text-xs text-on-surface-variant">NGN Payout Account</p>
-                        </div>
-                      </div>
-                      <span className="material-symbols-outlined text-secondary">check_circle</span>
-                    </div>
-                    <p className="text-[10px] mt-2 text-on-surface-variant italic">
-                      Withdrawals to NGN accounts include a 0.5% premium conversion spread.
-                    </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[14px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant mb-2">
+                      Destination Bank
+                    </label>
+                    <select
+                      className="w-full px-4 py-4 bg-white border border-outline-variant rounded-xl font-body font-medium outline-none focus:border-secondary transition-all"
+                      value={bankCode}
+                      onChange={e => setBankCode(e.target.value)}
+                    >
+                      {NIGERIAN_BANKS.map(b => (
+                        <option key={b.code} value={b.code}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+
+                  <div>
+                    <label className="block text-[14px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant mb-2">
+                      Account Number
+                    </label>
+                    <input
+                      className="w-full px-4 py-4 bg-white border border-outline-variant rounded-xl font-bold tracking-widest text-lg outline-none focus:border-secondary transition-all"
+                      placeholder="0123456789"
+                      maxLength={10}
+                      type="text"
+                      value={accountNumber}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setAccountNumber(val);
+                        setState("idle");
+                        setErrorMsg(null);
+                      }}
+                    />
+                  </div>
+
+                  <p className="text-[10px] text-on-surface-variant italic">
+                    Withdrawals to NGN accounts include a 0.5% premium conversion spread.
+                  </p>
                 </div>
 
                 {/* Amount & Conversion */}

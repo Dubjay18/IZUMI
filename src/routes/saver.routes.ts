@@ -288,10 +288,10 @@ export async function saverRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: 'Invalid request body' });
       }
 
-      const { userId, amountUSD } = body;
+      const { userId, amountUSD, accountNumber, bankCode } = body;
 
-      if (!userId || !amountUSD) {
-        return reply.code(400).send({ error: 'Missing required fields: userId, amountUSD' });
+      if (!userId || !amountUSD || !accountNumber || !bankCode) {
+        return reply.code(400).send({ error: 'Missing required fields: userId, amountUSD, accountNumber, bankCode' });
       }
 
       const amountUSDC = BigInt(Math.round(Number(amountUSD) * 1_000_000));
@@ -386,8 +386,8 @@ export async function saverRoutes(app: FastifyInstance) {
         const payoutAmountNGN = Number(amountUSD) * exchangeRate;
         await nombaService.disbursePayout(
           payoutAmountNGN,
-          '0123456789', // Default mock recipient bank account for MVP
-          '058',        // Default GTBank code
+          accountNumber,
+          bankCode,
           user.name,
           payoutRef
         );
