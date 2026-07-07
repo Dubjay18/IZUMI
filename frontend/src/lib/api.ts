@@ -46,6 +46,12 @@ import type {
 } from "./types";
 
 export const saverApi = {
+  login: (email: string) =>
+    request<SaverOnboardResponse>("/savers/login", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    }),
+
   onboard: (body: {
     name: string;
     email: string;

@@ -91,6 +91,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Saver Services
+  loginSaver: (email: string) =>
+    request<OnboardSaverResponse>("/savers/login", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    }),
+
   onboardSaver: (name: string, email: string, zkProof: ZKProof) =>
     request<OnboardSaverResponse>("/savers/onboard", {
       method: "POST",

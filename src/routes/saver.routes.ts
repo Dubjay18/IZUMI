@@ -21,6 +21,57 @@ export async function saverRoutes(app: FastifyInstance) {
     }
   });
 
+  // Temporary debug endpoint to retrieve forgotten account email
+  app.get('/savers/debug-list', async (request, reply) => {
+    try {
+      const users = await db.user.findMany({
+        select: { email: true, name: true, role: true }
+      });
+      return users;
+    } catch (err: any) {
+      return reply.code(500).send({ error: err.message });
+    }
+  });
+
+  // POST /savers/login
+  app.post('/savers/login', async (request, reply) => {
+    try {
+      const { email } = request.body as any;
+      if (!email) {
+        return reply.code(400).send({ error: 'Email is required' });
+      }
+
+      const user = await db.user.findUnique({
+        where: { email },
+        include: { wallets: true, virtualAccount: true, borrowerProfile: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'No account found with this email. Please onboard first.' });
+      }
+
+      return {
+        message: 'Login successful',
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        kycStatus: user.kycStatus,
+        walletAddress: user.wallets[0]?.address || '',
+        borrowerId: user.borrowerProfile?.id || null,
+        virtualAccount: user.virtualAccount ? {
+          accountNumber: user.virtualAccount.accountNumber,
+          bankName: user.virtualAccount.bankName,
+          accountName: user.virtualAccount.accountName,
+          reference: user.virtualAccount.reference
+        } : null
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Login failed: ${(err as Error).message}` });
+    }
+  });
+
   // Onboard Saver
   app.post('/savers/onboard', async (request, reply) => {
     const unlock = await walletService.registrationMutex.lock();
