@@ -1,7 +1,7 @@
 const BASE_URL = 
   (import.meta.env.VITE_API_URL as string) || 
   (import.meta.env.VITE_API_BASE_URL as string) || 
-  "http://localhost:3000";
+  "http://localhost:5000";
 
 class ApiError extends Error {
   public status: number;
@@ -17,9 +17,14 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+  
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
+    headers,
   });
 
   const data = await res.json();
@@ -59,7 +64,7 @@ export const saverApi = {
   getLedger: (userId: string) =>
     request<LedgerEntry[]>(`/savers/${userId}/ledger`),
 
-  withdraw: (body: { userId: string; amountUSD: number }) =>
+  withdraw: (body: { userId: string; amountUSD: number; accountNumber: string; bankCode: string }) =>
     request<WithdrawResponse>("/savers/withdraw", {
       method: "POST",
       body: JSON.stringify(body),
@@ -121,6 +126,12 @@ export const vaultApi = {
     request<{ success: boolean; message: string }>(`/savers/sessions/${token}/verify`, {
       method: "POST",
       body: JSON.stringify({ userId })
+    }),
+
+  syncDeposits: (userId: string, tier?: number) =>
+    request<{ success: boolean; message: string; usdSynced: number }>(`/savers/${userId}/sync`, {
+      method: "POST",
+      body: JSON.stringify({ tier })
     }),
 };
 

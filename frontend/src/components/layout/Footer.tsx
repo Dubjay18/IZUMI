@@ -16,11 +16,11 @@ export function Footer() {
           <div className="col-span-12 lg:col-span-4 space-y-6">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-secondary-fixed flex items-center justify-center rounded-full overflow-hidden">
-                <img
-                  src="https://lh3.googleusercontent.com/aida/AP1WRLsnnW5QHpNXUie_IG7utyOUeF6-kEGW_OED3NyOFV18kvh3PqIAwmKCg3Ywu9qK_TtlUGQfTjLcobo_pBkXQ_wVpmaQxU-LpzybVcr82RaEcluvTjx8TfnRHxQBD7WS_D5o7MJsE49OXm61IxjiB_8w3us59IEAltIpnAKgfxvc1Nsd-Kc6zNH5u63pg7skERonRnSCXj_2O5VfeBNRy5ena82kmxamqX1xNcHaTU-Pmgl3KFKHu0NdgxM"
-                  alt="Izumi Logo"
-                  className="w-full h-full object-contain"
-                />
+                  <img
+                    src="/screen.png"
+                    alt="Izumi Logo"
+                    className="w-full h-full object-contain"
+                  />
               </div>
               <span className="font-display text-2xl font-bold text-white tracking-tight">
                 Izumi

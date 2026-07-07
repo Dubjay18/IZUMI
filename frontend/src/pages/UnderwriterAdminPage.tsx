@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { GrainOverlay } from "@/components/ui/GrainOverlay";
 
-const LOGO_SRC =
-  "https://lh3.googleusercontent.com/aida/AP1WRLsUCwblwQwd_F48dQLPLKWBsCL_a2uMk4CsEKZT1ZEH2eHTa7NKH87jhIewFYLypznNnH1Go5gc1EreNf78KU5U-LCiVz_B_jYOENNVxxTre0nvvKCdJxJVkpDMphYmbUpdc9MhuPD3Y5aAFvib0kanwJLyA6yY3mx89GU5RoDiGVCTu-fYmRA2t9PQyT1bZLXxtK9jRM0AgmyeXJmA2P9KLd22p4fKSSM5Jo2cy7iBOKHb9emUHfwvapY";
+const LOGO_SRC = "/screen.png";
 
 const AVATAR_SRC =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCIJxGtmq6QtJ2qa1xPv0DExkPVGwRmwv3Q7jCo901EMqX-jEHvxx6HLslO-12iaoIgrDU-ncwnDIVsCWwJzOpDBcAq-AfpffyoWgD3cVVhGyFFWWz-ctW86cIxe-VIKz_MNhC7d0BXUQY-pAq9E2VmSp_k6bIxT0PHcXSZVu75erv5jT9e3jgzkrNecuZuMHVhnH4eJz7cwkn1xNYb3BdGKkEjz_EzWm1giOBlctHvZN_wp04NwHe7";

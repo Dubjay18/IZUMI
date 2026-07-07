@@ -1,8 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useUser } from "@/context/UserContext";
 
-const LOGO_SRC =
-  "https://lh3.googleusercontent.com/aida/AP1WRLsnnW5QHpNXUie_IG7utyOUeF6-kEGW_OED3NyOFV18kvh3PqIAwmKCg3Ywu9qK_TtlUGQfTjLcobo_pBkXQ_wVpmaQxU-LpzybVcr82RaEcluvTjx8TfnRHxQBD7WS_D5o7MJsE49OXm61IxjiB_8w3us59IEAltIpnAKgfxvc1Nsd-Kc6zNH5u63pg7skERonRnSCXj_2O5VfeBNRy5ena82kmxamqX1xNcHaTU-Pmgl3KFKHu0NdgxM";
+const LOGO_SRC = "/screen.png";
 
 const SAVER_LINKS = [
   { label: "Dashboard",  icon: "dashboard",               href: "/dashboard" },
@@ -33,7 +32,7 @@ const ADMIN_LINKS = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const { session } = useUser();
+  const { session, logout } = useUser();
   const NAV_LINKS =
     session?.role === "UNDERWRITER"
       ? ADMIN_LINKS
@@ -106,6 +105,14 @@ export function AppSidebar() {
         <button className="w-full bg-primary text-secondary-fixed py-2 rounded-lg text-[11px] font-body font-bold hover:shadow-lg transition-all active:scale-95">
           Message Izumi
         </button>
+        {session && (
+          <button 
+            onClick={logout}
+            className="w-full mt-2 border border-outline hover:bg-error/10 hover:text-error py-2 rounded-lg text-[11px] font-body font-bold transition-all active:scale-95"
+          >
+            Logout
+          </button>
+        )}
       </div>
     </aside>
   );

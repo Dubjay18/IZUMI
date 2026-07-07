@@ -5,8 +5,7 @@ import { generateKycProof } from "@/lib/zk";
 import { useUser } from "@/context/UserContext";
 import { TimelineNav, type StepKey } from "@/components/onboarding/TimelineNav";
 
-const LOGO_SRC =
-  "https://lh3.googleusercontent.com/aida/AP1WRLsnnW5QHpNXUie_IG7utyOUeF6-kEGW_OED3NyOFV18kvh3PqIAwmKCg3Ywu9qK_TtlUGQfTjLcobo_pBkXQ_wVpmaQxU-LpzybVcr82RaEcluvTjx8TfnRHxQBD7WS_D5o7MJsE49OXm61IxjiB_8w3us59IEAltIpnAKgfxvc1Nsd-Kc6zNH5u63pg7skERonRnSCXj_2O5VfeBNRy5ena82kmxamqX1xNcHaTU-Pmgl3KFKHu0NdgxM";
+const LOGO_SRC = "/screen.png";
 
 type KycMethod = "bvn" | "zk" | null;
 type KycSubStep = "method" | "liveness";
@@ -25,7 +24,7 @@ export function OnboardingPage() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [dob, setDob] = useState("");
-  const [country, setCountry] = useState("Switzerland");
+  const [country, setCountry] = useState("Nigeria");
   const [consent, setConsent] = useState(false);
 
   // KYC inputs
@@ -33,14 +32,16 @@ export function OnboardingPage() {
   const [nin, setNin] = useState("");
 
   // Handshake and Polling states
-  const [kycToken, setKycToken] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
+  const [kycToken] = useState<string | null>(null);
+  const [isPolling] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState("");
 
   const pollIntervalRef = useRef<any>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Mouse move effect for Card perspective
   useEffect(() => {
@@ -56,12 +57,22 @@ export function OnboardingPage() {
     return () => window.removeEventListener("mousemove", onMouseMove);
   }, []);
 
-  // Cleanup polling interval on unmount
+  // Cleanup polling interval and local stream on unmount
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
     };
-  }, []);
+  }, [localStream]);
+
+  // Bind video stream object
+  useEffect(() => {
+    if (videoRef.current && localStream) {
+      videoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
 
   function handleIdentityNext(e: React.FormEvent) {
     e.preventDefault();
@@ -70,7 +81,7 @@ export function OnboardingPage() {
     setError(null);
   }
 
-  // Generate compliance session and start polling
+  // Skip liveness handshake and directly trigger onboarding
   async function handleProceedToLiveness(e: React.FormEvent) {
     e.preventDefault();
     if (!kycMethod) return;
@@ -80,49 +91,34 @@ export function OnboardingPage() {
       return;
     }
 
-    setLoading(true);
     setError(null);
-    try {
-      // 1. Create a session handshake token on the backend
-      const res = await saverApi.createKycSession();
-      setKycToken(res.token);
-      setKycSubStep("liveness");
-      setIsPolling(true);
-
-      // 2. Poll status every 2 seconds
-      pollIntervalRef.current = setInterval(async () => {
-        try {
-          const pollRes = await saverApi.pollKycSession(res.token);
-          if (pollRes.status === "VERIFIED") {
-            clearInterval(pollIntervalRef.current);
-            setIsPolling(false);
-            // Execute the submit flow automatically once verified!
-            await executeSaverOnboarding();
-          }
-        } catch (pollErr) {
-          console.error("KYC Polling Error:", pollErr);
-        }
-      }, 2000);
-
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : (err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    await executeSaverOnboarding();
   }
 
-  // Handle local desktop scanning simulation (no phone required for testing)
+  // Handle local desktop scanning using real webcam with simulated analysis
   const handleLocalDesktopScan = async () => {
     if (!kycToken) return;
     setLoading(true);
+    setError(null);
     try {
-      // Simulate scanning animation
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      // Mark token as verified directly
+      // 1. Request webcam access and assign stream to local state
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 300, height: 300, facingMode: "user" }
+      });
+      setLocalStream(stream);
+
+      // 2. Wait 3 seconds for analysis/biometric check simulation
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      
+      // 3. Stop all camera tracks
+      stream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+
+      // 4. Mark token as verified directly on backend
       await saverApi.verifyKycSession(kycToken, "");
-    } catch (err) {
-      setError("Local verification failed.");
-    } finally {
+    } catch (err: any) {
+      console.error("Local webcam access failed:", err);
+      setError("Webcam access failed. Please ensure you grant camera permissions in your browser or use the mobile simulator link below.");
       setLoading(false);
     }
   };
@@ -182,20 +178,10 @@ export function OnboardingPage() {
           <div className="mb-12">
             <h1 className="font-headline-md text-headline-md text-primary mb-2">Join the Collective</h1>
             <p className="text-on-surface-variant font-body-lg">
-              Begin your journey toward curated prosperity with our secure verification process.
+              Begin your journey with our secure verification process.
             </p>
           </div>
           <TimelineNav currentStep={step} />
-          <div className="mt-auto pt-12">
-            <div className="p-6 bg-secondary-fixed/10 border border-secondary-fixed/30 rounded-xl">
-              <p className="font-label-sm text-on-secondary-fixed-variant italic">
-                &ldquo;Elegance is the only beauty that never fades.&rdquo;
-              </p>
-              <p className="font-subhead-caps text-[10px] text-secondary mt-2">
-                &mdash; Curated Wealth Philosophy
-              </p>
-            </div>
-          </div>
         </aside>
 
         <section className="col-span-8 flex justify-center items-start pt-4 relative">
@@ -290,6 +276,7 @@ export function OnboardingPage() {
                       onChange={(e) => setCountry(e.target.value)}
                       className="w-full bg-transparent border-t-0 border-l-0 border-r-0 border-b border-outline-variant py-3 px-0 font-body-lg text-primary focus:border-secondary transition-colors appearance-none outline-none"
                     >
+                      <option>Nigeria</option>
                       <option>Switzerland</option>
                       <option>United Kingdom</option>
                       <option>Singapore</option>
@@ -400,7 +387,7 @@ export function OnboardingPage() {
                       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <div className="relative">
                           <label className="font-subhead-caps text-subhead-caps text-on-surface-variant block mb-1">
-                            {kycMethod === "zk" ? "BVN (stays on your device)" : "BVN"}
+                            {kycMethod === "zk" ? "BVN (11 digits, stays on your device)" : "BVN (11 digits)"}
                           </label>
                           <input
                             type="text"
@@ -416,7 +403,7 @@ export function OnboardingPage() {
                         {kycMethod === "bvn" && (
                           <div className="relative">
                             <label className="font-subhead-caps text-subhead-caps text-on-surface-variant block mb-1">
-                              NIN (optional)
+                              NIN (optional, 11 digits)
                             </label>
                             <input
                               type="text"
@@ -467,7 +454,7 @@ export function OnboardingPage() {
                           </>
                         ) : (
                           <>
-                            CONTINUE TO LIVENESS
+                            COMPLETE ONBOARDING
                             <span className="material-symbols-outlined text-base">arrow_forward</span>
                           </>
                         )}
@@ -489,14 +476,19 @@ export function OnboardingPage() {
                       <div className="bg-surface-container-low border border-outline-variant/40 rounded-xl p-6 text-center space-y-4 shadow-sm">
                         <span className="font-subhead-caps text-[10px] text-outline block">MOBILE SCAN HAND-OFF</span>
                         
-                        {/* Simulated QR Code Wrapper */}
-                        <div className="w-40 h-40 bg-white p-2 rounded-lg mx-auto flex flex-col items-center justify-center border border-outline-variant/30 shadow-inner group">
-                          {/* Premium Abstract QR Pattern Simulator */}
-                          <div className="w-full h-full relative opacity-85 group-hover:scale-95 transition-transform">
+                        {/* Real QR Code Wrapper */}
+                        <div className="w-40 h-40 bg-white p-2 rounded-lg mx-auto flex flex-col items-center justify-center border border-outline-variant/30 shadow-inner group overflow-hidden">
+                          {kycToken ? (
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(mobileKycLink)}`}
+                              alt="Scan to verify liveness"
+                              className="w-full h-full object-contain group-hover:scale-95 transition-transform"
+                            />
+                          ) : (
                             <span className="material-symbols-outlined text-[140px] text-primary" style={{ fontVariationSettings: "'FILL' 0" }}>
                               qr_code_2
                             </span>
-                          </div>
+                          )}
                         </div>
 
                         <p className="text-xs text-on-surface-variant leading-relaxed">
@@ -519,12 +511,24 @@ export function OnboardingPage() {
                         
                         {/* Biometric Scan circular guide */}
                         <div className="relative w-36 h-36 rounded-full overflow-hidden border-2 border-dashed border-outline-variant mx-auto flex items-center justify-center bg-surface-container-low/30 shadow-inner">
-                          {loading ? (
-                            <div className="absolute inset-0 border-2 border-t-primary rounded-full animate-spin" />
-                          ) : null}
-                          <span className="material-symbols-outlined text-[54px] text-outline animate-pulse">
-                            face
-                          </span>
+                          {localStream ? (
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              muted
+                              className="w-full h-full object-cover scale-x-[-1]"
+                            />
+                          ) : (
+                            <>
+                              {loading ? (
+                                <div className="absolute inset-0 border-2 border-t-primary rounded-full animate-spin" />
+                              ) : null}
+                              <span className="material-symbols-outlined text-[54px] text-outline animate-pulse">
+                                face
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         <p className="text-xs text-on-surface-variant leading-relaxed">
@@ -547,6 +551,12 @@ export function OnboardingPage() {
                         <p className="text-xs text-on-surface-variant">
                           Listening for mobile verification sync status...
                         </p>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-error text-sm font-body animate-in fade-in duration-300">
+                        {error}
                       </div>
                     )}
 

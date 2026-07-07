@@ -178,7 +178,7 @@ export function BorrowerOnboardingPage() {
                   </div>
                 ))}
                 <div>
-                  <label className="text-[12px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">BVN</label>
+                  <label className="text-[12px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">Director BVN (11 digits)</label>
                   <input
                     id="borrow-bvn" type="text" inputMode="numeric" maxLength={11} required value={bvn}
                     onChange={e => setBvn(e.target.value.replace(/\D/g, ""))} placeholder="22234567890"
@@ -202,8 +202,8 @@ export function BorrowerOnboardingPage() {
               <div className="space-y-4">
                 {[
                   { id: "borrow-company", label: "Company Name", value: companyName, onChange: setCompanyName, placeholder: "Obi Ventures Ltd" },
-                  { id: "borrow-cac", label: "CAC RC Number", value: cacRcNumber, onChange: setCacRcNumber, placeholder: "RC-1234567" },
-                  { id: "borrow-tin", label: "Business TIN", value: businessTin, onChange: setBusinessTin, placeholder: "12345678-0001" },
+                  { id: "borrow-cac", label: "CAC RC Number (Must start with RC or BN)", value: cacRcNumber, onChange: setCacRcNumber, placeholder: "RC-1234567" },
+                  { id: "borrow-tin", label: "Business TIN (At least 8 characters)", value: businessTin, onChange: setBusinessTin, placeholder: "12345678-0001" },
                 ].map(f => (
                   <div key={f.id}>
                     <label className="text-[12px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">{f.label}</label>

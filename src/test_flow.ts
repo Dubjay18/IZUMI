@@ -1,4 +1,5 @@
-process.env.NOMBA_MOCK = 'true';
+// GAP 1: Allow live sandbox testing — set NOMBA_MOCK=false in .env to test with real Nomba sandbox
+process.env.NOMBA_MOCK = process.env.NOMBA_MOCK ?? 'true';
 process.env.STARTING_DERIVATION_INDEX = '20';
 
 import crypto from 'crypto';
