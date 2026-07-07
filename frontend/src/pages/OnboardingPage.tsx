@@ -40,6 +40,8 @@ export function OnboardingPage() {
   const [walletAddress, setWalletAddress] = useState("");
 
   const pollIntervalRef = useRef<any>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Mouse move effect for Card perspective
   useEffect(() => {
@@ -55,12 +57,22 @@ export function OnboardingPage() {
     return () => window.removeEventListener("mousemove", onMouseMove);
   }, []);
 
-  // Cleanup polling interval on unmount
+  // Cleanup polling interval and local stream on unmount
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
     };
-  }, []);
+  }, [localStream]);
+
+  // Bind video stream object
+  useEffect(() => {
+    if (videoRef.current && localStream) {
+      videoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
 
   function handleIdentityNext(e: React.FormEvent) {
     e.preventDefault();
@@ -110,17 +122,30 @@ export function OnboardingPage() {
     }
   }
 
-  // Handle local desktop scanning simulation (no phone required for testing)
+  // Handle local desktop scanning using real webcam with simulated analysis
   const handleLocalDesktopScan = async () => {
     if (!kycToken) return;
     setLoading(true);
+    setError(null);
     try {
-      // Simulate scanning animation
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      // Mark token as verified directly
+      // 1. Request webcam access and assign stream to local state
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 300, height: 300, facingMode: "user" }
+      });
+      setLocalStream(stream);
+
+      // 2. Wait 3 seconds for analysis/biometric check simulation
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      
+      // 3. Stop all camera tracks
+      stream.getTracks().forEach(track => track.stop());
+      setLocalStream(null);
+
+      // 4. Mark token as verified directly on backend
       await saverApi.verifyKycSession(kycToken, "");
-    } catch (err) {
-      setError("Local verification failed.");
+    } catch (err: any) {
+      console.error("Local webcam access failed:", err);
+      setError("Webcam access failed. Please ensure you grant camera permissions in your browser or use the mobile simulator link below.");
     } finally {
       setLoading(false);
     }
@@ -514,12 +539,24 @@ export function OnboardingPage() {
                         
                         {/* Biometric Scan circular guide */}
                         <div className="relative w-36 h-36 rounded-full overflow-hidden border-2 border-dashed border-outline-variant mx-auto flex items-center justify-center bg-surface-container-low/30 shadow-inner">
-                          {loading ? (
-                            <div className="absolute inset-0 border-2 border-t-primary rounded-full animate-spin" />
-                          ) : null}
-                          <span className="material-symbols-outlined text-[54px] text-outline animate-pulse">
-                            face
-                          </span>
+                          {localStream ? (
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              muted
+                              className="w-full h-full object-cover scale-x-[-1]"
+                            />
+                          ) : (
+                            <>
+                              {loading ? (
+                                <div className="absolute inset-0 border-2 border-t-primary rounded-full animate-spin" />
+                              ) : null}
+                              <span className="material-symbols-outlined text-[54px] text-outline animate-pulse">
+                                face
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         <p className="text-xs text-on-surface-variant leading-relaxed">

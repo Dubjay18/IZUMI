@@ -17,7 +17,7 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const headers: HeadersInit = { ...options.headers };
+  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
   if (options.body) {
     headers["Content-Type"] = "application/json";
   }
