@@ -479,14 +479,19 @@ export function OnboardingPage() {
                       <div className="bg-surface-container-low border border-outline-variant/40 rounded-xl p-6 text-center space-y-4 shadow-sm">
                         <span className="font-subhead-caps text-[10px] text-outline block">MOBILE SCAN HAND-OFF</span>
                         
-                        {/* Simulated QR Code Wrapper */}
-                        <div className="w-40 h-40 bg-white p-2 rounded-lg mx-auto flex flex-col items-center justify-center border border-outline-variant/30 shadow-inner group">
-                          {/* Premium Abstract QR Pattern Simulator */}
-                          <div className="w-full h-full relative opacity-85 group-hover:scale-95 transition-transform">
+                        {/* Real QR Code Wrapper */}
+                        <div className="w-40 h-40 bg-white p-2 rounded-lg mx-auto flex flex-col items-center justify-center border border-outline-variant/30 shadow-inner group overflow-hidden">
+                          {kycToken ? (
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(mobileKycLink)}`}
+                              alt="Scan to verify liveness"
+                              className="w-full h-full object-contain group-hover:scale-95 transition-transform"
+                            />
+                          ) : (
                             <span className="material-symbols-outlined text-[140px] text-primary" style={{ fontVariationSettings: "'FILL' 0" }}>
                               qr_code_2
                             </span>
-                          </div>
+                          )}
                         </div>
 
                         <p className="text-xs text-on-surface-variant leading-relaxed">

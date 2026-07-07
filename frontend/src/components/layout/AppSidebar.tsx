@@ -32,7 +32,7 @@ const ADMIN_LINKS = [
 
 export function AppSidebar() {
   const location = useLocation();
-  const { session } = useUser();
+  const { session, logout } = useUser();
   const NAV_LINKS =
     session?.role === "UNDERWRITER"
       ? ADMIN_LINKS
@@ -105,6 +105,14 @@ export function AppSidebar() {
         <button className="w-full bg-primary text-secondary-fixed py-2 rounded-lg text-[11px] font-body font-bold hover:shadow-lg transition-all active:scale-95">
           Message Izumi
         </button>
+        {session && (
+          <button 
+            onClick={logout}
+            className="w-full mt-2 border border-outline hover:bg-error/10 hover:text-error py-2 rounded-lg text-[11px] font-body font-bold transition-all active:scale-95"
+          >
+            Logout
+          </button>
+        )}
       </div>
     </aside>
   );
