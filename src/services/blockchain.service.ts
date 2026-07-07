@@ -115,7 +115,7 @@ export class BlockchainService {
         const balance = await this.publicClient.getBalance({ address: signer.address });
         if (balance < 50000000000000000n) { // less than 0.05 ETH
           console.log(`BlockchainService: Funding address ${signer.address} with gas from hot wallet`);
-          const pk = process.env.HOT_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+          const pk = process.env.HOT_WALLET_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
           const hotAccount = privateKeyToAccount(pk as `0x${string}`);
           const hotWalletClient = createWalletClient({
             account: hotAccount,
@@ -174,7 +174,7 @@ export class BlockchainService {
       const unlock = await this.txMutex.lock();
       try {
         // Standard local Anvil address 0 private key for testing if not set
-        const pk = process.env.HOT_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+        const pk = process.env.HOT_WALLET_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
         const hotAccount = privateKeyToAccount(pk as `0x${string}`);
         
         const walletClient = createWalletClient({
@@ -284,7 +284,7 @@ export class BlockchainService {
     const borrowerAddress = signer.address;
 
     // 1. Send ETH from hot wallet for gas
-    const pk = process.env.HOT_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    const pk = process.env.HOT_WALLET_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
     const hotAccount = privateKeyToAccount(pk as `0x${string}`);
     const walletClient = createWalletClient({
       account: hotAccount,

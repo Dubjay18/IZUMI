@@ -51,6 +51,34 @@ export class AiService {
     }
   }
 
+  async generateContentWithFallback(prompt: string, schema?: any): Promise<string> {
+    const models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro'];
+    let lastError: any;
+    
+    for (const modelName of models) {
+      try {
+        console.log(`AI Service: Trying generateContent with model: ${modelName}`);
+        const config: any = {};
+        if (schema && modelName.includes('1.5')) {
+          config.generationConfig = {
+            responseMimeType: 'application/json',
+            responseSchema: schema,
+          };
+        }
+        const model = this.genAI!.getGenerativeModel({
+          model: modelName,
+          ...config
+        });
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+      } catch (err: any) {
+        console.warn(`AI Service: Model ${modelName} failed:`, err.message);
+        lastError = err;
+      }
+    }
+    throw lastError;
+  }
+
   async scoreSmeCredit(metrics: CreditMetrics): Promise<CreditAssessment> {
     // If no API Key is available or if we are using mock-key-for-development, return a simulated response
     if (!this.genAI) {
@@ -59,14 +87,6 @@ export class AiService {
     }
 
     try {
-      const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: responseSchema,
-        }
-      });
-
       const prompt = `
         You are an expert financial credit officer for Nigerian SMEs. Your task is to calculate a Credit Score Grade and approved lending limit for this business.
         
@@ -81,11 +101,23 @@ export class AiService {
         1. Assign a Credit Grade: A (Very Low Risk), B (Moderate Risk), C (High Risk).
         2. Calculate Approved Credit Limit: Maximum of 1.5x average net profit (Monthly Revenue - Operating Costs). If net profit is negative or zero, credit limit should be 0.
         3. Return key strengths and risks based on the volatility, ticket size, and sector.
+        4. You must format your response strictly as a JSON object matching this schema:
+           {
+             "creditScore": number (0-100),
+             "creditGrade": "A" | "B" | "C",
+             "approvedLimit": number,
+             "recommendedInterestPremium": number,
+             "analysis": {
+               "strengths": string[],
+               "weaknesses": string[],
+               "businessTips": string[]
+             }
+           }
       `;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      return JSON.parse(text) as CreditAssessment;
+      const rawText = await this.generateContentWithFallback(prompt, responseSchema);
+      const cleanedJson = rawText.replace(/```json/gi, '').replace(/```/gi, '').trim();
+      return JSON.parse(cleanedJson) as CreditAssessment;
     } catch (error) {
       console.error('Error generating AI credit score:', error);
       throw new Error(`Failed to score SME credit via Gemini: ${(error as Error).message}`);
@@ -137,7 +169,6 @@ export class AiService {
     }
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const prompt = `
         You are the "Izumi AI Credit Advisory Consultant," an AI assistant helping Nigerian micro-merchants and SMEs optimize their financial performance and manage credit scores.
         
@@ -151,8 +182,7 @@ export class AiService {
         Write a friendly, concise, and highly practical financial advice response tailored for small business owners in Nigeria. Keep the response under 4-5 sentences and focus on actionable takeaways (e.g. optimizing card sweeps, stocking, or cost reductions).
       `;
 
-      const result = await model.generateContent(prompt);
-      return result.response.text();
+      return await this.generateContentWithFallback(prompt);
     } catch (error) {
       console.error('Error generating AI advisory chat:', error);
       return `Failed to analyze advisory chat via Gemini: ${(error as Error).message}`;
