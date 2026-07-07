@@ -8,6 +8,40 @@ import { zkService } from '../services/zk.service.js';
 import { cryptoService } from '../services/crypto.service.js';
 
 export async function saverRoutes(app: FastifyInstance) {
+  // GET /savers/debug-users (Temporary debugger for testing)
+  app.get('/savers/debug-users', async (request, reply) => {
+    try {
+      const users = await db.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: { wallets: true, virtualAccount: true }
+      });
+
+      return users.map(u => {
+        const rawBvn = u.bvn ? cryptoService.decrypt(u.bvn) : null;
+        const rawNin = u.nin ? cryptoService.decrypt(u.nin) : null;
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          kycStatus: u.kycStatus,
+          decryptedBvn: rawBvn,
+          decryptedNin: rawNin,
+          walletAddress: u.wallets[0]?.address || null,
+          virtualAccount: u.virtualAccount ? {
+            accountNumber: u.virtualAccount.accountNumber,
+            bankName: u.virtualAccount.bankName,
+            accountName: u.virtualAccount.accountName,
+            reference: u.virtualAccount.reference
+          } : null
+        };
+      });
+    } catch (err) {
+      return reply.code(500).send({ error: (err as Error).message });
+    }
+  });
+
   // Get Next Derivation Address (used by ZK KYC binding)
   app.get('/savers/next-address', async (request, reply) => {
     try {
