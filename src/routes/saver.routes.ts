@@ -723,9 +723,9 @@ export async function saverRoutes(app: FastifyInstance) {
 
       const reference = user.virtualAccount.reference;
       
-      // Look back 7 days
+      // Look back 7 days, look forward 1 day to capture recent transactions safely
       const dateFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const dateTo = new Date().toISOString().split('T')[0];
+      const dateTo = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       console.log(`SaverRoutes: Syncing transactions for ${user.name} (Ref: ${reference}) from ${dateFrom} to ${dateTo}...`);
       const txs = await nombaService.fetchTransactions(dateFrom, dateTo);
@@ -735,7 +735,7 @@ export async function saverRoutes(app: FastifyInstance) {
 
       for (const tx of txs) {
         // Nomba transaction refs match our accountRef/reference
-        const txRef = tx.merchantTxRef || tx.onlineCheckoutOrderReference || tx.paymentReference;
+        const txRef = tx.virtualAccountReference || tx.merchantTxRef || tx.onlineCheckoutOrderReference || tx.paymentReference;
         if (txRef !== reference) continue;
 
         // Idempotency check: prevent duplicate credit for the same transactionId
