@@ -113,7 +113,7 @@ export class BlockchainService {
         
         // Auto-fund derived wallet with gas if needed
         const balance = await this.publicClient.getBalance({ address: signer.address });
-        if (balance < 50000000000000000n) { // less than 0.05 ETH
+        if (balance < 500000000000000n) { // less than 0.0005 ETH
           console.log(`BlockchainService: Funding address ${signer.address} with gas from hot wallet`);
           const pk = process.env.HOT_WALLET_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
           const hotAccount = privateKeyToAccount(pk as `0x${string}`);
@@ -124,7 +124,7 @@ export class BlockchainService {
           });
           const ethHash = await hotWalletClient.sendTransaction({
             to: signer.address,
-            value: 200000000000000000n, // 0.2 ETH
+            value: 2000000000000000n, // 0.002 ETH
             chain: this.chain
           });
           await this.publicClient.waitForTransactionReceipt({ hash: ethHash });
@@ -292,10 +292,10 @@ export class BlockchainService {
       transport: http(this.rpcUrl)
     });
 
-    console.log(`BlockchainService: Sending 0.2 ETH to borrower ${borrowerAddress} for gas`);
+    console.log(`BlockchainService: Sending 0.002 ETH to borrower ${borrowerAddress} for gas`);
     const ethHash = await walletClient.sendTransaction({
       to: borrowerAddress,
-      value: 200000000000000000n, // 0.2 ETH
+      value: 2000000000000000n, // 0.002 ETH
       chain: this.chain
     });
     await this.publicClient.waitForTransactionReceipt({ hash: ethHash });
