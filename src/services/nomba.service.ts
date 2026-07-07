@@ -445,7 +445,9 @@ export class NombaService {
     }
 
     const token = await this.getAccessToken();
-    const url = `${this.baseUrl}/transactions?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}&status=success`;
+    const url = this.subAccountId
+      ? `${this.baseUrl}/transactions/accounts/${this.subAccountId}?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}&status=success`
+      : `${this.baseUrl}/transactions/accounts?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}&status=success`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
