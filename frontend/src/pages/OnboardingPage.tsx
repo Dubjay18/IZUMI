@@ -32,8 +32,8 @@ export function OnboardingPage() {
   const [nin, setNin] = useState("");
 
   // Handshake and Polling states
-  const [kycToken, setKycToken] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
+  const [kycToken] = useState<string | null>(null);
+  const [isPolling] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export function OnboardingPage() {
     setError(null);
   }
 
-  // Generate compliance session and start polling
+  // Skip liveness handshake and directly trigger onboarding
   async function handleProceedToLiveness(e: React.FormEvent) {
     e.preventDefault();
     if (!kycMethod) return;
@@ -91,35 +91,8 @@ export function OnboardingPage() {
       return;
     }
 
-    setLoading(true);
     setError(null);
-    try {
-      // 1. Create a session handshake token on the backend
-      const res = await saverApi.createKycSession();
-      setKycToken(res.token);
-      setKycSubStep("liveness");
-      setIsPolling(true);
-
-      // 2. Poll status every 2 seconds
-      pollIntervalRef.current = setInterval(async () => {
-        try {
-          const pollRes = await saverApi.pollKycSession(res.token);
-          if (pollRes.status === "VERIFIED") {
-            clearInterval(pollIntervalRef.current);
-            setIsPolling(false);
-            // Execute the submit flow automatically once verified!
-            await executeSaverOnboarding();
-          }
-        } catch (pollErr) {
-          console.error("KYC Polling Error:", pollErr);
-        }
-      }, 2000);
-
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : (err as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    await executeSaverOnboarding();
   }
 
   // Handle local desktop scanning using real webcam with simulated analysis
@@ -146,7 +119,6 @@ export function OnboardingPage() {
     } catch (err: any) {
       console.error("Local webcam access failed:", err);
       setError("Webcam access failed. Please ensure you grant camera permissions in your browser or use the mobile simulator link below.");
-    } finally {
       setLoading(false);
     }
   };
@@ -482,7 +454,7 @@ export function OnboardingPage() {
                           </>
                         ) : (
                           <>
-                            CONTINUE TO LIVENESS
+                            COMPLETE ONBOARDING
                             <span className="material-symbols-outlined text-base">arrow_forward</span>
                           </>
                         )}

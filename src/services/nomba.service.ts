@@ -189,15 +189,27 @@ export class NombaService {
       bodyPayload.amount = expectedAmount;
     }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'accountId': this.accountId,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(bodyPayload),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'accountId': this.accountId,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyPayload),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      nombaLog({ operation: 'createVirtualAccount', merchantTxRef, status: 'FAIL', detail: `Fetch failed or timed out: ${(fetchErr as Error).message}` });
+      throw fetchErr;
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
