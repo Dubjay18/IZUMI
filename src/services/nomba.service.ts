@@ -175,9 +175,12 @@ export class NombaService {
 
     nombaLog({ operation: 'createVirtualAccount', merchantTxRef, status: 'START', detail: `Name: ${accountName}` });
 
+    // Nomba rejects special characters like "/" in the accountName. We sanitize it here.
+    const sanitizedAccountName = `IZUMI ${accountName}`.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+
     const bodyPayload: any = {
       accountRef,
-      accountName: `IZUMI / ${accountName}`,
+      accountName: sanitizedAccountName,
       currency: 'NGN',
       bvn,
     };

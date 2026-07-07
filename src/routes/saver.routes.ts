@@ -55,7 +55,7 @@ export async function saverRoutes(app: FastifyInstance) {
             nombaAcc = {
               accountNumber: `90${Math.floor(10000000 + Math.random() * 90000000)}`,
               bankName: 'Nomba Microfinance Bank (Fallback)',
-              accountName: `IZUMI / ${existingUser.name}`,
+              accountName: `IZUMI ${existingUser.name}`,
               reference: ref
             };
           }
@@ -140,7 +140,7 @@ export async function saverRoutes(app: FastifyInstance) {
         nombaAcc = {
           accountNumber: `90${Math.floor(10000000 + Math.random() * 90000000)}`,
           bankName: 'Nomba Microfinance Bank (Fallback)',
-          accountName: `IZUMI / ${result.user.name}`,
+          accountName: `IZUMI ${result.user.name}`,
           reference: ref
         };
       }
