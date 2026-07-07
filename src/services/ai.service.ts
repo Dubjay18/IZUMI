@@ -52,14 +52,14 @@ export class AiService {
   }
 
   async generateContentWithFallback(prompt: string, schema?: any): Promise<string> {
-    const models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro'];
+    const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro', 'gemini-1.5-pro'];
     let lastError: any;
     
     for (const modelName of models) {
       try {
         console.log(`AI Service: Trying generateContent with model: ${modelName}`);
         const config: any = {};
-        if (schema && modelName.includes('1.5')) {
+        if (schema && !modelName.includes('gemini-pro')) {
           config.generationConfig = {
             responseMimeType: 'application/json',
             responseSchema: schema,
