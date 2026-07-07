@@ -56,7 +56,7 @@ export function LedgerTable() {
           {FILTERS.map((f) => (
             <button
               key={f.key}
-              onClick={() => handleFilterChange(f.key)}
+              onClick={() => handleFilterChange(f.key as FilterKey)}
               className={`px-4 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-colors ${
                 activeFilter === f.key
                   ? "bg-secondary-container text-on-secondary-container"

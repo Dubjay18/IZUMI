@@ -9,7 +9,6 @@ export function CommunityImpact() {
 
   const baseline = balanceUSD > 0 ? balanceUSD : 10000;
 
-  const tvl = stats?.totalValueLockedUSD ?? 142850;
   const totalYield = stats?.totalYieldDistributedUSD ?? 0;
   const totalSavers = stats?.totalSavers ?? 0;
 

@@ -8,36 +8,7 @@ type FilterTab = "All History" | "Deposits" | "Withdrawals" | "Yield";
 
 const PAGE_SIZE = 20;
 
-const NOTIFICATIONS = [
-  {
-    id: "n1",
-    title: "Large Withdrawal Detected",
-    body: "A withdrawal of $24,500.00 was processed to Account **4921.",
-    time: "2 MINUTES AGO",
-    isNew: true,
-  },
-  {
-    id: "n2",
-    title: "ZK-Verification Successful",
-    body: "Daily Split repayment #882-X verified on-chain via ZK-Proof.",
-    time: "1 HOUR AGO",
-    isNew: true,
-  },
-  {
-    id: "n3",
-    title: "Portfolio Rebalanced",
-    body: "Asset allocation updated according to Q3 strategy.",
-    time: "4 HOURS AGO",
-    isNew: false,
-  },
-  {
-    id: "n4",
-    title: "Yield Distributed",
-    body: "Treasury yield of $412.18 credited to your vault.",
-    time: "6 HOURS AGO",
-    isNew: true,
-  },
-];
+
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
@@ -131,7 +102,6 @@ export function TransactionHistoryPage() {
     setPage,
     setFilter,
     page,
-    filter,
   } = useTransactions(session?.userId, PAGE_SIZE);
 
   const [search, setSearch] = useState("");
@@ -140,15 +110,23 @@ export function TransactionHistoryPage() {
   const TABS: FilterTab[] = ["All History", "Deposits", "Withdrawals", "Yield"];
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return entries;
+    let result = entries;
+
+    // Apply tab filter on client side as a robust fallback
+    const apiFilter = typeToApiFilter(activeFilter);
+    if (apiFilter) {
+      result = result.filter((e) => e.type === apiFilter);
+    }
+
+    if (!search.trim()) return result;
     const q = search.toLowerCase();
-    return entries.filter(
+    return result.filter(
       (e) =>
         e.type.toLowerCase().includes(q) ||
         e.id.toLowerCase().includes(q) ||
         (e.txHash && e.txHash.toLowerCase().includes(q))
     );
-  }, [entries, search]);
+  }, [entries, search, activeFilter]);
 
   function handleFilter(tab: FilterTab) {
     setActiveFilter(tab);
@@ -156,10 +134,88 @@ export function TransactionHistoryPage() {
     setFilter(apiFilter);
   }
 
-  const totalPages = pagination?.totalPages ?? 1;
-  const totalEntries = pagination?.total ?? 0;
+  const totalEntries = pagination?.total ?? filtered.length;
+  const totalPages = pagination?.totalPages ?? Math.max(1, Math.ceil(totalEntries / PAGE_SIZE));
   const fromEntry = totalEntries === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const toEntry = Math.min(page * PAGE_SIZE, totalEntries);
+
+  const notifications = useMemo(() => {
+    const list = [];
+    
+    // Generate notifications from actual ledger entries
+    const recentLedger = entries.slice(0, 5);
+    recentLedger.forEach((entry, idx) => {
+      const amountUSD = Number(entry.amount) / MICRO_USDC;
+      const formattedAmount = amountUSD.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+      let title = "";
+      let body = "";
+      
+      if (entry.type === "DEPOSIT") {
+        title = "Deposit Successful";
+        body = `Your liquidity deposit of $${formattedAmount} was processed successfully.`;
+      } else if (entry.type === "WITHDRAWAL") {
+        title = entry.status === "PENDING" ? "Withdrawal Pending" : entry.status === "FAILED" ? "Withdrawal Failed" : "Withdrawal Processed";
+        body = `A withdrawal of $${formattedAmount} was ${entry.status.toLowerCase()} to your bank account.`;
+      } else if (entry.type === "YIELD") {
+        title = "Yield Distributed";
+        body = `Treasury yield of $${formattedAmount} was credited to your vault.`;
+      }
+
+      if (title) {
+        // Calculate relative time or format nicely
+        const entryDate = new Date(entry.createdAt);
+        const diffMs = Date.now() - entryDate.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        let timeStr = "";
+        if (diffMins < 1) {
+          timeStr = "JUST NOW";
+        } else if (diffMins < 60) {
+          timeStr = `${diffMins} MINUTE${diffMins > 1 ? "S" : ""} AGO`;
+        } else if (diffHours < 24) {
+          timeStr = `${diffHours} HOUR${diffHours > 1 ? "S" : ""} AGO`;
+        } else if (diffDays < 7) {
+          timeStr = `${diffDays} DAY${diffDays > 1 ? "S" : ""} AGO`;
+        } else {
+          timeStr = entryDate.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+        }
+
+        list.push({
+          id: `tx-notif-${entry.id}`,
+          title,
+          body,
+          time: timeStr,
+          isNew: entry.status === "PENDING" || idx === 0,
+        });
+      }
+    });
+
+    if (list.length === 0) {
+      list.push({
+        id: "n-welcome",
+        title: "Welcome to IZUMI",
+        body: "Onboarded successfully. Your virtual account is ready to receive deposits.",
+        time: "JUST NOW",
+        isNew: true
+      });
+    }
+
+    list.push({
+      id: "n-trust",
+      title: "ZK-KYC Verified",
+      body: "On-chain identity bound via ZK-Proof derivation address.",
+      time: "ONBOARDING",
+      isNew: false
+    });
+
+    return list;
+  }, [entries]);
 
   return (
     <AppLayout showCurve={false}>
@@ -212,16 +268,16 @@ export function TransactionHistoryPage() {
                   Notifications
                 </h3>
                 <span className="bg-secondary-container text-on-secondary-container text-[10px] px-2.5 py-0.5 rounded-full font-bold">
-                  {NOTIFICATIONS.filter((n) => n.isNew).length} NEW
+                  {notifications.filter((n) => n.isNew).length} NEW
                 </span>
               </div>
 
               <div className="max-h-[360px] overflow-y-auto custom-scrollbar px-2 pb-2">
-                {NOTIFICATIONS.map((n, i) => (
+                {notifications.map((n, i) => (
                   <div
                     key={n.id}
                     className={`group px-4 py-4 hover:bg-surface-container-low transition-colors cursor-pointer ${
-                      i < NOTIFICATIONS.length - 1
+                      i < notifications.length - 1
                         ? "border-b border-outline-variant/30"
                         : ""
                     }`}

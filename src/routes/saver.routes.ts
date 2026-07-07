@@ -441,7 +441,7 @@ export async function saverRoutes(app: FastifyInstance) {
 
       for (const entry of user.ledger) {
         if (entry.status === 'COMPLETED') {
-          const val = Number(entry.amount) / 100; // stored in cents
+          const val = Number(entry.amount) / 1_000_000; // stored in micro-USDC (6 decimals)
           if (entry.type === 'DEPOSIT') {
             totalSavingsUSD += val;
           } else if (entry.type === 'WITHDRAWAL') {
@@ -460,8 +460,8 @@ export async function saverRoutes(app: FastifyInstance) {
         where: { type: 'WITHDRAWAL', status: 'COMPLETED' }
       });
 
-      const globalDeposits = globalDepositsList.reduce((acc, d) => acc + Number(d.amount), 0) / 100;
-      const globalWithdrawals = globalWithdrawalsList.reduce((acc, w) => acc + Number(w.amount), 0) / 100;
+      const globalDeposits = globalDepositsList.reduce((acc, d) => acc + Number(d.amount), 0) / 1_000_000;
+      const globalWithdrawals = globalWithdrawalsList.reduce((acc, w) => acc + Number(w.amount), 0) / 1_000_000;
       const globalTVL = Math.max(1, globalDeposits - globalWithdrawals);
 
       const userShare = totalSavingsUSD / globalTVL;
@@ -511,23 +511,198 @@ export async function saverRoutes(app: FastifyInstance) {
   app.get('/savers/:id/transactions', async (request, reply) => {
     try {
       const { id } = request.params as any;
+      const query = request.query as any;
+      const page = Math.max(1, parseInt(query?.page ?? '1', 10) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(query?.limit ?? '20', 10) || 20));
+      const type = typeof query?.type === 'string' ? query.type.toUpperCase() : undefined;
+
+      const where: any = { userId: id };
+      if (type === 'DEPOSIT' || type === 'WITHDRAWAL' || type === 'YIELD') {
+        where.type = type;
+      }
+
       const transactions = await db.ledger.findMany({
-        where: { userId: id },
+        where,
         orderBy: { createdAt: 'desc' }
       });
 
-      return transactions.map(t => ({
+      const total = transactions.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const currentPage = Math.min(page, totalPages);
+      const start = (currentPage - 1) * limit;
+      const entries = transactions.slice(start, start + limit).map((t) => ({
         id: t.id,
+        userId: t.userId,
+        amount: t.amount,
         type: t.type,
-        amountRaw: t.amount,
-        amountUSD: Number(t.amount) / 100,
         status: t.status,
         txHash: t.txHash,
-        timestamp: t.createdAt
+        createdAt: t.createdAt.toISOString(),
       }));
+
+      return {
+        entries,
+        pagination: {
+          page: currentPage,
+          limit,
+          total,
+          totalPages,
+        },
+      };
     } catch (err) {
       app.log.error(err);
       return reply.code(500).send({ error: `Failed to retrieve transaction ledger: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /savers/:id/portfolio
+  app.get('/savers/:id/portfolio', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const user = await db.user.findUnique({
+        where: { id },
+        include: { ledger: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+
+      let totalSavingsUSD = 0;
+      let totalYieldUSD = 0;
+
+      for (const entry of user.ledger) {
+        if (entry.status === 'COMPLETED') {
+          const val = Number(entry.amount) / 1_000_000;
+          if (entry.type === 'DEPOSIT') {
+            totalSavingsUSD += val;
+          } else if (entry.type === 'WITHDRAWAL') {
+            totalSavingsUSD -= val;
+          } else if (entry.type === 'YIELD') {
+            totalYieldUSD += val;
+          }
+        }
+      }
+
+      totalSavingsUSD = Math.max(0, totalSavingsUSD);
+      totalYieldUSD = Math.max(0, totalYieldUSD);
+      const totalPortfolioValue = totalSavingsUSD + totalYieldUSD;
+
+      // 1. Metrics
+      const metrics = [
+        {
+          label: "TOTAL PORTFOLIO VALUE",
+          value: `$${totalPortfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          icon: "account_balance_wallet",
+          change: "+12.4%",
+          positive: true
+        },
+        {
+          label: "NET DEPOSITS",
+          value: `$${totalSavingsUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          icon: "arrow_downward",
+          change: "+8.2%",
+          positive: true
+        },
+        {
+          label: "TOTAL YIELD EARNED",
+          value: `$${totalYieldUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          icon: "payments",
+          change: "+24.8%",
+          positive: true
+        },
+        {
+          label: "AVERAGE NET APY",
+          value: "14.25%",
+          icon: "trending_up",
+          change: "+0.5%",
+          positive: true
+        }
+      ];
+
+      // 2. Allocation
+      const allocation = [
+        { label: "SME Credit Pool", pct: totalPortfolioValue > 0 ? 60 : 0, color: "#001512" },
+        { label: "Invoice Factoring", pct: totalPortfolioValue > 0 ? 25 : 0, color: "#003b30" },
+        { label: "Vault Liquidity", pct: totalPortfolioValue > 0 ? 15 : 0, color: "#a9cec5" }
+      ];
+
+      // 3. Performance (Monthly yield rates over time)
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const currentMonthIndex = new Date().getMonth();
+      
+      const performance = Array.from({ length: 6 }, (_, idx) => {
+        const mIdx = (currentMonthIndex - 5 + idx + 12) % 12;
+        const monthName = months[mIdx];
+        const mockYieldRates = [5.2, 5.4, 5.5, 5.8, 6.1, 6.5];
+        const yRate = mockYieldRates[idx];
+        const monthlyPrincipal = totalSavingsUSD * (0.8 + (idx * 0.04));
+        
+        return {
+          month: monthName,
+          yield: yRate,
+          principal: parseFloat(monthlyPrincipal.toFixed(2))
+        };
+      });
+
+      // 4. Distribution (Principal vs earned yield by quarter)
+      const distribution = [
+        { period: "Q3 2025", principal: totalSavingsUSD * 0.4, yield: totalYieldUSD * 0.2 },
+        { period: "Q4 2025", principal: totalSavingsUSD * 0.6, yield: totalYieldUSD * 0.4 },
+        { period: "Q1 2026", principal: totalSavingsUSD * 0.8, yield: totalYieldUSD * 0.7 },
+        { period: "Q2 2026", principal: totalSavingsUSD, yield: totalYieldUSD }
+      ].map(d => ({
+        period: d.period,
+        principal: parseFloat(d.principal.toFixed(2)),
+        yield: parseFloat(d.yield.toFixed(2))
+      }));
+
+      // 5. Strategy Mix
+      const strategyMix = [
+        { label: "SME Credit Pool", pct: 60, desc: "High-yield senior debt financing for verified trade SMEs" },
+        { label: "Invoice Factoring", pct: 25, desc: "Short-term receivables financing backed by blue-chip off-takers" },
+        { label: "Vault Liquidity", pct: 15, desc: "Instant-withdrawal buffer pools holding stable assets" }
+      ];
+
+      // 6. Next Yield Event
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + 15);
+      const estimatedPayoutUSD = totalPortfolioValue * 0.005;
+
+      const nextYieldEvent = {
+        date: nextDate.toISOString().split('T')[0],
+        estimatedPayoutUSD: parseFloat(estimatedPayoutUSD.toFixed(2))
+      };
+
+      // 7. Yield Forecast
+      const yieldForecast = Array.from({ length: 4 }, (_, idx) => {
+        const projected = totalPortfolioValue * Math.pow(1 + 0.1425 / 4, idx + 1);
+        return {
+          quarter: `Q${((new Date().getMonth() / 3) + idx + 1) % 4 || 4}`,
+          projectedValue: parseFloat(projected.toFixed(2))
+        };
+      });
+
+      // 8. Asset Flow
+      const assetFlow = [
+        { label: "Deposits", percentage: 85, color: "#001512", desc: "Stable capital inflow" },
+        { label: "Reinvestments", percentage: 10, color: "#003b30", desc: "Auto-compounded returns" },
+        { label: "Withdrawals", percentage: 5, color: "#e9c349", desc: "Capital out-flow" }
+      ];
+
+      return {
+        metrics,
+        allocation,
+        performance,
+        distribution,
+        strategyMix,
+        nextYieldEvent,
+        yieldForecast,
+        assetFlow
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve portfolio details: ${(err as Error).message}` });
     }
   });
 
@@ -628,8 +803,8 @@ export async function saverRoutes(app: FastifyInstance) {
         where: { type: 'WITHDRAWAL', status: 'COMPLETED' }
       });
 
-      const globalDeposits = globalDepositsList.reduce((acc, d) => acc + Number(d.amount), 0) / 100;
-      const globalWithdrawals = globalWithdrawalsList.reduce((acc, w) => acc + Number(w.amount), 0) / 100;
+      const globalDeposits = globalDepositsList.reduce((acc, d) => acc + Number(d.amount), 0) / 1_000_000;
+      const globalWithdrawals = globalWithdrawalsList.reduce((acc, w) => acc + Number(w.amount), 0) / 1_000_000;
       const globalTVL = Math.max(100, globalDeposits - globalWithdrawals);
 
       const activeLoansSumResult = await db.loanApplication.aggregate({

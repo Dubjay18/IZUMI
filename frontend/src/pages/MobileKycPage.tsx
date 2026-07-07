@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { saverApi, ApiError } from "@/lib/api";
+import { vaultApi, ApiError } from "@/lib/api";
 
 export function MobileKycPage() {
   const [searchParams] = useSearchParams();
@@ -37,7 +37,7 @@ export function MobileKycPage() {
       await new Promise((resolve) => setTimeout(resolve, 2500));
 
       // Trigger compliance session verification status update on backend
-      await saverApi.verifyKycSession(token, "");
+      await vaultApi.verifyKycSession(token, "");
       setStep("success");
     } catch (err) {
       setStep("error");

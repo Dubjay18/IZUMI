@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { DurationCard } from "@/components/dashboard/DurationCard";
 import { VirtualAccountCard } from "@/components/dashboard/VirtualAccountCard";
 import { useUser } from "@/context/UserContext";
-import { saverApi } from "@/lib/api";
+import { vaultApi } from "@/lib/api";
 
 const DURATION_OPTIONS = [
   {
@@ -49,7 +49,7 @@ export function DepositPage() {
     try {
       setIsConfirming(true);
       setConfirmMessage("");
-      const res = await saverApi.syncDeposits(session.userId, tier);
+      const res = await vaultApi.syncDeposits(session.userId, tier);
       setConfirmMessage(res.message || "Sync complete! Any new deposits detected have been swept and credited to your balance.");
       alert(res.message || "Sync complete! Any new deposits detected have been swept and credited to your balance.");
     } catch (err: any) {

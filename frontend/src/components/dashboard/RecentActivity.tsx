@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useLedger } from "@/hooks/useLedger";
-import { saverApi } from "@/lib/api";
+import { vaultApi } from "@/lib/api";
 
 const MICRO_USDC = 1_000_000;
 
@@ -52,7 +52,7 @@ export function RecentActivity() {
     setSyncing(true);
     setSyncResult(null);
     try {
-      const res = await saverApi.syncDeposits(session.userId);
+      const res = await vaultApi.syncDeposits(session.userId);
       setSyncResult(res.message);
       setTimeout(() => {
         window.location.reload();

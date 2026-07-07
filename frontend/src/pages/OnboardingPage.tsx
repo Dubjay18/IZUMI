@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { saverApi, ApiError } from "@/lib/api";
+import { saverApi, vaultApi, ApiError } from "@/lib/api";
 import { generateKycProof } from "@/lib/zk";
 import { useUser } from "@/context/UserContext";
 import { TimelineNav, type StepKey } from "@/components/onboarding/TimelineNav";
@@ -115,7 +115,7 @@ export function OnboardingPage() {
       setLocalStream(null);
 
       // 4. Mark token as verified directly on backend
-      await saverApi.verifyKycSession(kycToken, "");
+      await vaultApi.verifyKycSession(kycToken, "");
     } catch (err: any) {
       console.error("Local webcam access failed:", err);
       setError("Webcam access failed. Please ensure you grant camera permissions in your browser or use the mobile simulator link below.");

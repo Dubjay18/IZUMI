@@ -16,6 +16,7 @@ export interface UserSession {
   walletAddress: string;
   virtualAccount: VirtualAccount | null;
   borrowerId: string | null;
+  phoneNumber?: string | null;
 }
 
 export interface BalanceResponse {

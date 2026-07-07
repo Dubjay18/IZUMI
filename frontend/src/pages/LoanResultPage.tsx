@@ -61,7 +61,7 @@ export function LoanResultPage() {
 
   const [accepted, setAccepted] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
