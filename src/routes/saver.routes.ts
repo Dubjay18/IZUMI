@@ -745,6 +745,75 @@ export async function saverRoutes(app: FastifyInstance) {
     }
   });
 
+  // GET /savers/:id/positions
+  app.get('/savers/:id/positions', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const user = await db.user.findUnique({
+        where: { id },
+        include: { ledger: true }
+      });
+
+      if (!user) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+
+      const completedDeposits = user.ledger.filter(
+        (t) => t.type === 'DEPOSIT' && t.status === 'COMPLETED'
+      );
+
+      const positions: any[] = [];
+      const matured: any[] = [];
+      let totalValueUSD = 0;
+
+      for (const t of completedDeposits) {
+        const principalUSD = Number(t.amount) / 1_000_000;
+        totalValueUSD += principalUSD;
+
+        // Default to 30 days lockup for demo purposes
+        const durationDays = 30;
+        const createdAtDate = new Date(t.createdAt);
+        const maturityDate = new Date(createdAtDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+        const totalDuration = maturityDate.getTime() - createdAtDate.getTime();
+        const elapsed = Date.now() - createdAtDate.getTime();
+        const progress = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+        const status = progress >= 100 ? 'Matured' : 'Locked';
+
+        const position = {
+          id: t.id,
+          txHash: t.txHash || '0x' + '0'.repeat(40),
+          type: 'SME Credit Pool',
+          name: `${user.name} - ${durationDays} Days Plan`,
+          status,
+          principalUSD,
+          apy: '14.25%',
+          createdAt: createdAtDate.toISOString(),
+          maturityDate: maturityDate.toISOString(),
+          progress
+        };
+
+        if (status === 'Matured') {
+          matured.push(position);
+        } else {
+          positions.push(position);
+        }
+      }
+
+      return {
+        positions,
+        matured,
+        vaultBalanceRaw: (totalValueUSD * 1_000_000).toString(),
+        vaultBalanceUSD: totalValueUSD,
+        totalPositions: positions.length + matured.length
+      };
+
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve positions: ${(err as Error).message}` });
+    }
+  });
+
   app.post('/savers/:id/sync', async (request, reply) => {
     try {
       const { id } = request.params as any;
