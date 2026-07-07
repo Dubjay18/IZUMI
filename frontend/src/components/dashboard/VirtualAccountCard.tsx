@@ -158,10 +158,10 @@ export function VirtualAccountCard({
         {isConfirming ? (
           <>
             <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
-            Checking Deposits...
+            Processing Investment...
           </>
         ) : (
-          "Confirm Funding Transaction"
+          `Confirm & Lock in ${selectedDuration} Plan`
         )}
       </button>
 
