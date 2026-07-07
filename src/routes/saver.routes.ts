@@ -45,7 +45,7 @@ export async function saverRoutes(app: FastifyInstance) {
   // GET /savers/cleanup (Bypasses DB entries for test emails to re-register fresh)
   app.get('/savers/cleanup', async (request, reply) => {
     try {
-      const emails = ['haritzwilliams@gmail.com', 'oreoluwaisrael07@gmail.com', 'test-bvn-saver@example.com'];
+      const emails = ['haritzwilliams@gmail.com', 'oreoluwaisrael07@gmail.com', 'test-bvn-saver@example.com', 'alexisrael@gmail.com'];
       let deletedCount = 0;
       
       for (const email of emails) {
@@ -61,6 +61,48 @@ export async function saverRoutes(app: FastifyInstance) {
       return { success: true, message: `Successfully deleted ${deletedCount} test profiles and associated data.` };
     } catch (err) {
       return reply.code(500).send({ error: (err as Error).message });
+    }
+  });
+
+  // GET /savers/debug-dva-test (Runs a real-time DVA test directly on Railway)
+  app.get('/savers/debug-dva-test', async (request, reply) => {
+    try {
+      const ref = `test_va_${Date.now()}`;
+      const token = await nombaService.getAccessToken();
+      const url = nombaService['subAccountId']
+        ? `${nombaService['baseUrl']}/accounts/virtual/${nombaService['subAccountId']}`
+        : `${nombaService['baseUrl']}/accounts/virtual`;
+
+      const bodyPayload = {
+        accountRef: ref,
+        accountName: 'IZUMI Oreoluwa Osibajo',
+        currency: 'NGN',
+        bvn: '22607300367'
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'accountId': nombaService['accountId'],
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      const text = await response.text();
+      return {
+        status: response.status,
+        url,
+        accountId: nombaService['accountId'],
+        subAccountId: nombaService['subAccountId'],
+        response: text
+      };
+    } catch (err) {
+      return {
+        error: (err as Error).message,
+        stack: (err as Error).stack
+      };
     }
   });
 
