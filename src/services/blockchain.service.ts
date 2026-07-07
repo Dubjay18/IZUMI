@@ -1,5 +1,5 @@
 import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
-import { foundry, baseSepolia } from 'viem/chains';
+import { foundry, baseSepolia, optimismSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import crypto from 'crypto';
 import { walletService } from './wallet.service.js';
@@ -79,7 +79,11 @@ export class BlockchainService {
 
   constructor() {
     this.rpcUrl = process.env.RPC_URL || 'http://127.0.0.1:8545';
-    this.chain = process.env.NODE_ENV === 'production' ? baseSepolia : foundry;
+    let chainObj: any = baseSepolia;
+    if (this.rpcUrl.includes('optimism')) {
+      chainObj = optimismSepolia;
+    }
+    this.chain = process.env.NODE_ENV === 'production' ? chainObj : foundry;
     
     const isLocalRpc = this.rpcUrl.includes('127.0.0.1') || this.rpcUrl.includes('localhost');
     const inCloud = process.env.RAILWAY_ENVIRONMENT !== undefined || process.env.NODE_ENV === 'production';
