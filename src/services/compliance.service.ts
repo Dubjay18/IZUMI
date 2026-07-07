@@ -37,7 +37,7 @@ export class ComplianceService {
    * Simulate BVN identity lookup (SmileID/Mono)
    */
   async verifyBvn(bvn: string, fullName: string): Promise<BvnVerificationResult> {
-    console.log(`ComplianceService: Starting BVN check for BVN: ${bvn}, Name: ${fullName}`);
+    console.log(`ComplianceService: Starting BVN check for BVN: ***${bvn.slice(-4)}, Name: ${fullName}`);
     
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -79,7 +79,7 @@ export class ComplianceService {
    * Simulate CAC registration registry check (Mono/Prembly)
    */
   async verifyCac(rcNumber: string, companyName: string, directorName: string): Promise<CacVerificationResult> {
-    console.log(`ComplianceService: Starting CAC check for RC: ${rcNumber}, Company: ${companyName}`);
+    console.log(`ComplianceService: Starting CAC check for RC: ${rcNumber}, Company: ${companyName.substring(0, 8)}***`);
     
     await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -114,7 +114,7 @@ export class ComplianceService {
    * Simulate TIN tax validation check (Prembly)
    */
   async verifyTin(tin: string): Promise<TinVerificationResult> {
-    console.log(`ComplianceService: Starting TIN check for: ${tin}`);
+    console.log(`ComplianceService: Starting TIN check for: ***${tin.slice(-4)}`);
     
     await new Promise(resolve => setTimeout(resolve, 500));
 

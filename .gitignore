@@ -17,6 +17,9 @@ yarn-error.log*
 
 # Runtime environment secrets
 .env
+cred.md
+morecontext.md
+zcontext.md
 
 # Editor files
 .vscode/

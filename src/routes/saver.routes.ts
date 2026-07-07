@@ -493,6 +493,91 @@ export async function saverRoutes(app: FastifyInstance) {
     }
   });
 
+  // POST /savers/:id/sync
+  app.post('/savers/:id/sync', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const user = await db.user.findUnique({
+        where: { id },
+        include: { wallets: true, virtualAccount: true }
+      });
+
+      if (!user || !user.virtualAccount) {
+        return reply.code(404).send({ error: 'User or Virtual Account details not found' });
+      }
+
+      const reference = user.virtualAccount.reference;
+      
+      // Look back 7 days
+      const dateFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const dateTo = new Date().toISOString().split('T')[0];
+
+      console.log(`SaverRoutes: Syncing transactions for ${user.name} (Ref: ${reference}) from ${dateFrom} to ${dateTo}...`);
+      const txs = await nombaService.fetchTransactions(dateFrom, dateTo);
+
+      let syncCount = 0;
+      let usdSynced = 0;
+
+      for (const tx of txs) {
+        // Nomba transaction refs match our accountRef/reference
+        const txRef = tx.merchantTxRef || tx.onlineCheckoutOrderReference || tx.paymentReference;
+        if (txRef !== reference) continue;
+
+        // Idempotency check: prevent duplicate credit for the same transactionId
+        const transactionId = tx.id || tx.transactionId || tx.paymentReference;
+        const existingLedger = await db.ledger.findFirst({
+          where: { userId: id, txHash: transactionId }
+        });
+
+        if (existingLedger) continue;
+
+        // Process deposit
+        const amountNGN = Number(tx.amount);
+        const exchangeRate = process.env.EXCHANGE_RATE ? Number(process.env.EXCHANGE_RATE) : 1500;
+        const amountUSD = amountNGN / exchangeRate;
+        const amountUSDC_Micro = BigInt(Math.round(amountUSD * 1_000_000));
+
+        if (amountUSDC_Micro <= 0n) continue;
+
+        const wallet = user.wallets[0];
+        if (!wallet) continue;
+
+        console.log(`SaverRoutes: Sync found new credit of ₦${amountNGN} ($${amountUSD} USD). Executing on-chain Quest deposit...`);
+        
+        try {
+          await blockchainService.transferUsdcFromHotWallet(wallet.address, amountUSDC_Micro);
+          const txHash = await blockchainService.depositToQuest(wallet.derivationIndex, amountUSDC_Micro, 0);
+
+          await db.ledger.create({
+            data: {
+              userId: user.id,
+              amount: amountUSDC_Micro.toString(),
+              type: 'DEPOSIT',
+              status: 'COMPLETED',
+              txHash: transactionId
+            }
+          });
+
+          syncCount++;
+          usdSynced += amountUSD;
+        } catch (chainErr) {
+          console.error(`SaverRoutes: On-chain transaction failed during sync:`, chainErr);
+          // Still record in ledger as pending or failed, or bubble up
+          throw chainErr;
+        }
+      }
+
+      return {
+        success: true,
+        message: `Synced ${syncCount} new deposits successfully.`,
+        usdSynced
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Transaction sync failed: ${(err as Error).message}` });
+    }
+  });
+
   // GET /protocol/vault-health
   app.get('/protocol/vault-health', async (request, reply) => {
     try {

@@ -1,7 +1,7 @@
 const BASE_URL = 
   (import.meta.env.VITE_API_URL as string) || 
   (import.meta.env.VITE_API_BASE_URL as string) || 
-  "http://localhost:3000";
+  "http://localhost:5000";
 
 class ApiError extends Error {
   public status: number;
@@ -102,6 +102,11 @@ export const saverApi = {
     request<{ success: boolean; message: string }>(`/savers/sessions/${token}/verify`, {
       method: "POST",
       body: JSON.stringify({ userId })
+    }),
+
+  syncDeposits: (userId: string) =>
+    request<{ success: boolean; message: string; usdSynced: number }>(`/savers/${userId}/sync`, {
+      method: "POST"
     }),
 };
 

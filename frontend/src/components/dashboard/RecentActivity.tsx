@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useLedger } from "@/hooks/useLedger";
+import { saverApi } from "@/lib/api";
 
 const MICRO_USDC = 1_000_000;
 
@@ -40,7 +42,27 @@ const PLACEHOLDER_ITEMS = [
 export function RecentActivity() {
   const { session } = useUser();
   const { entries, loading } = useLedger(session?.userId);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+
   const hasLiveData = entries.length > 0;
+
+  const handleSync = async () => {
+    if (!session?.userId) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await saverApi.syncDeposits(session.userId);
+      setSyncResult(res.message);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      setSyncResult(err.message || "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div className="glass-panel rounded-2xl p-8">
@@ -48,7 +70,21 @@ export function RecentActivity() {
         <h3 className="text-[14px] font-body font-semibold text-primary uppercase tracking-[0.15em]">
           Recent Activity
         </h3>
-        <button className="text-secondary text-xs hover:underline font-body">View All</button>
+        <div className="flex items-center gap-2">
+          {syncResult && (
+            <span className="text-[10px] text-primary/70 animate-pulse font-body truncate max-w-[120px]">
+              {syncResult}
+            </span>
+          )}
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="text-secondary text-xs hover:underline font-body flex items-center gap-1 disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-[14px]">sync</span>
+            {syncing ? "Syncing..." : "Sync Deposits"}
+          </button>
+        </div>
       </div>
 
       {loading && (
