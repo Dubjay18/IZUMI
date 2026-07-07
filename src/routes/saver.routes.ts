@@ -8,7 +8,7 @@ import { zkService } from '../services/zk.service.js';
 import { cryptoService } from '../services/crypto.service.js';
 
 export async function saverRoutes(app: FastifyInstance) {
-  // GET /savers/debug-users (Temporary debugger for testing)
+  // GET /savers/debug-users (Temporary debugger for testing, masked for privacy)
   app.get('/savers/debug-users', async (request, reply) => {
     try {
       const users = await db.user.findMany({
@@ -19,15 +19,15 @@ export async function saverRoutes(app: FastifyInstance) {
 
       return users.map(u => {
         const rawBvn = u.bvn ? cryptoService.decrypt(u.bvn) : null;
-        const rawNin = u.nin ? cryptoService.decrypt(u.nin) : null;
+        // Mask the BVN for privacy (e.g. 226******67)
+        const maskedBvn = rawBvn ? `${rawBvn.substring(0, 3)}******${rawBvn.substring(rawBvn.length - 2)}` : null;
         return {
           id: u.id,
           name: u.name,
           email: u.email,
           role: u.role,
           kycStatus: u.kycStatus,
-          decryptedBvn: rawBvn,
-          decryptedNin: rawNin,
+          maskedBvn,
           walletAddress: u.wallets[0]?.address || null,
           virtualAccount: u.virtualAccount ? {
             accountNumber: u.virtualAccount.accountNumber,
@@ -37,6 +37,28 @@ export async function saverRoutes(app: FastifyInstance) {
           } : null
         };
       });
+    } catch (err) {
+      return reply.code(500).send({ error: (err as Error).message });
+    }
+  });
+
+  // GET /savers/cleanup (Bypasses DB entries for test emails to re-register fresh)
+  app.get('/savers/cleanup', async (request, reply) => {
+    try {
+      const emails = ['haritzwilliams@gmail.com', 'oreoluwaisrael07@gmail.com', 'test-bvn-saver@example.com'];
+      let deletedCount = 0;
+      
+      for (const email of emails) {
+        const user = await db.user.findUnique({ where: { email } });
+        if (user) {
+          await db.virtualAccount.deleteMany({ where: { userId: user.id } });
+          await db.wallet.deleteMany({ where: { userId: user.id } });
+          await db.ledger.deleteMany({ where: { userId: user.id } });
+          await db.user.delete({ where: { id: user.id } });
+          deletedCount++;
+        }
+      }
+      return { success: true, message: `Successfully deleted ${deletedCount} test profiles and associated data.` };
     } catch (err) {
       return reply.code(500).send({ error: (err as Error).message });
     }
