@@ -109,9 +109,10 @@ export const saverApi = {
       body: JSON.stringify({ userId })
     }),
 
-  syncDeposits: (userId: string) =>
+  syncDeposits: (userId: string, tier?: number) =>
     request<{ success: boolean; message: string; usdSynced: number }>(`/savers/${userId}/sync`, {
-      method: "POST"
+      method: "POST",
+      body: JSON.stringify({ tier })
     }),
 };
 

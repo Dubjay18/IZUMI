@@ -531,10 +531,12 @@ export async function saverRoutes(app: FastifyInstance) {
     }
   });
 
-  // POST /savers/:id/sync
   app.post('/savers/:id/sync', async (request, reply) => {
     try {
       const { id } = request.params as any;
+      const body = request.body as any;
+      const tier = body && typeof body.tier === 'number' ? body.tier : 0;
+
       const user = await db.user.findUnique({
         where: { id },
         include: { wallets: true, virtualAccount: true }
@@ -584,7 +586,7 @@ export async function saverRoutes(app: FastifyInstance) {
         
         try {
           await blockchainService.transferUsdcFromHotWallet(wallet.address, amountUSDC_Micro);
-          const txHash = await blockchainService.depositToQuest(wallet.derivationIndex, amountUSDC_Micro, 0);
+          const txHash = await blockchainService.depositToQuest(wallet.derivationIndex, amountUSDC_Micro, tier);
 
           await db.ledger.create({
             data: {

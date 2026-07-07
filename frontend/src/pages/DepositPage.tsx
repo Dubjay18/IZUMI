@@ -41,10 +41,15 @@ export function DepositPage() {
 
   const handleConfirmTransaction = async () => {
     if (!session?.userId) return;
+    
+    // Map selectedId duration ("30", "60", "90") to contract lockup tiers (0, 1, 2)
+    const tierMap: Record<string, number> = { "30": 0, "60": 1, "90": 2 };
+    const tier = tierMap[selectedId] ?? 0;
+
     try {
       setIsConfirming(true);
       setConfirmMessage("");
-      const res = await saverApi.syncDeposits(session.userId);
+      const res = await saverApi.syncDeposits(session.userId, tier);
       setConfirmMessage(res.message || "Sync complete! Any new deposits detected have been swept and credited to your balance.");
       alert(res.message || "Sync complete! Any new deposits detected have been swept and credited to your balance.");
     } catch (err: any) {
