@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { DurationCard } from "@/components/dashboard/DurationCard";
 import { VirtualAccountCard } from "@/components/dashboard/VirtualAccountCard";
 import { useUser } from "@/context/UserContext";
-import { vaultApi } from "@/lib/api";
+import { saverApi, vaultApi } from "@/lib/api";
 
 const DURATION_OPTIONS = [
   {
@@ -42,6 +42,11 @@ export function DepositPage() {
   const handleConfirmTransaction = async () => {
     if (!session?.userId) return;
     
+    console.log("IZUMI DEBUG: saverApi is", saverApi);
+    if (typeof saverApi.syncDeposits !== "function") {
+      console.error("IZUMI DEBUG ERROR: syncDeposits is not defined on saverApi! This is likely due to browser/Vite cache. Please force-reload the page (Ctrl+Shift+R or Cmd+Shift+R) or restart your Vite dev server.");
+    }
+
     // Map selectedId duration ("30", "60", "90") to contract lockup tiers (0, 1, 2)
     const tierMap: Record<string, number> = { "30": 0, "60": 1, "90": 2 };
     const tier = tierMap[selectedId] ?? 0;

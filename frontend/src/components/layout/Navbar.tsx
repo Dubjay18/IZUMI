@@ -63,12 +63,20 @@ export function Navbar() {
               Open Dashboard
             </Link>
           ) : (
-            <Link
-              to="/onboard"
-              className="bg-primary text-secondary-fixed px-8 py-3 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:shadow-lg transition-all active:scale-95"
-            >
-              Get Started
-            </Link>
+            <div className="flex items-center gap-6">
+              <Link
+                to="/login"
+                className="text-[14px] font-body uppercase tracking-[0.15em] font-semibold text-on-surface-variant hover:text-primary transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/onboard"
+                className="bg-primary text-secondary-fixed px-8 py-3 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:shadow-lg transition-all active:scale-95"
+              >
+                Get Started
+              </Link>
+            </div>
           )}
         </div>
 

@@ -117,10 +117,10 @@ export class NombaService {
     // Issue a fresh token
     nombaLog({ operation: 'auth/token/issue', status: 'START' });
     const url = `${this.baseUrl}/auth/token/issue`;
- 
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
+
     let response;
     try {
       response = await fetch(url, {
@@ -361,7 +361,7 @@ export class NombaService {
     if (!response.ok) {
       const errorText = await response.text();
       nombaLog({ operation: 'disbursePayout', merchantTxRef, status: 'FAIL', detail: errorText });
-      
+
       // Resilient rescue for sandbox/hackathon parent accounts that do not have live bank transfer permissions active
       if (response.status === 401 || response.status === 403 || response.status === 404) {
         console.warn(`Nomba service payout failed with status ${response.status} (${errorText}). Rescuing with simulated success for testing.`);
@@ -462,7 +462,7 @@ export class NombaService {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
- 
+
       if (!response.ok) {
         nombaLog({ operation: 'fetchTransactions', status: 'FAIL', detail: `HTTP ${response.status}` });
         return [];
