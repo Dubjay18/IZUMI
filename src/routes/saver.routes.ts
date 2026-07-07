@@ -21,35 +21,6 @@ export async function saverRoutes(app: FastifyInstance) {
     }
   });
 
-  // Temporary debug endpoint to list virtual accounts
-  app.get('/savers/debug-find-vact', async (request, reply) => {
-    try {
-      const vacts = await db.virtualAccount.findMany({
-        include: { user: true }
-      });
-      return vacts.map(v => ({
-        email: v.user.email,
-        name: v.user.name,
-        accountNumber: v.accountNumber,
-        reference: v.reference
-      }));
-    } catch (err: any) {
-      return reply.code(500).send({ error: err.message });
-    }
-  });
-
-  // Temporary debug endpoint to retrieve forgotten account email
-  app.get('/savers/debug-list', async (request, reply) => {
-    try {
-      const users = await db.user.findMany({
-        select: { email: true, name: true, role: true }
-      });
-      return users;
-    } catch (err: any) {
-      return reply.code(500).send({ error: err.message });
-    }
-  });
-
   // POST /savers/login
   app.post('/savers/login', async (request, reply) => {
     try {
