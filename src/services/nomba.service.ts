@@ -117,19 +117,31 @@ export class NombaService {
     // Issue a fresh token
     nombaLog({ operation: 'auth/token/issue', status: 'START' });
     const url = `${this.baseUrl}/auth/token/issue`;
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'accountId': this.accountId,
-      },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-      }),
-    });
+ 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'accountId': this.accountId,
+        },
+        body: JSON.stringify({
+          grant_type: 'client_credentials',
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      nombaLog({ operation: 'auth/token/issue', status: 'FAIL', detail: `Fetch failed or timed out: ${(fetchErr as Error).message}` });
+      throw fetchErr;
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -435,7 +447,8 @@ export class NombaService {
     const token = await this.getAccessToken();
     const url = `${this.baseUrl}/transactions?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}&status=success`;
 
-    nombaLog({ operation: 'fetchTransactions', status: 'START', detail: `${dateFrom} → ${dateTo}` });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
       const response = await fetch(url, {
@@ -444,8 +457,10 @@ export class NombaService {
           'Authorization': `Bearer ${token}`,
           'accountId': this.accountId,
         },
+        signal: controller.signal,
       });
-
+      clearTimeout(timeoutId);
+ 
       if (!response.ok) {
         nombaLog({ operation: 'fetchTransactions', status: 'FAIL', detail: `HTTP ${response.status}` });
         return [];
