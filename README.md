@@ -36,13 +36,51 @@ IZUMI decouples transaction execution, risk assessment, and identity verificatio
 
 ## 🛠️ Monorepo Structure
 
-* [/contracts](file:///home/adeyemi/Documents/Work/IZUMI/contracts): The smart contract layer containing the Yield Vaults and Credit Bond Solidity code, built with Foundry.
-* [/src](file:///home/adeyemi/Documents/Work/IZUMI/src): The TypeScript backend server built with Fastify, Viem, and Prisma.
+* [/frontend](file:///home/jay/Documents/experiment/IZUMI/frontend): A premium, high-fidelity React + TypeScript + Vite dashboard web application styled with Material Design 3 and responsive layouts.
+* [/contracts](file:///home/jay/Documents/experiment/IZUMI/contracts): The smart contract layer containing the Yield Vaults and Credit Bond Solidity code, built with Foundry.
+* [/src](file:///home/jay/Documents/experiment/IZUMI/src): The TypeScript backend server built with Fastify, Viem, and Prisma.
+
+---
+
+## 💻 Frontend Dashboard Web Application (`/frontend`)
+
+The frontend is a Material-3 design-inspired React dashboard application facilitating interactive savers and borrower workflows:
+
+### Key Features & Workflows
+* **Unified Onboarding Selection**: Interactive gateway splitting user onboarding between Saver and Borrower workflows.
+* **ZK-KYC Saver Ingress**: Onboarding backed by BVN verification and client-side ZK-KYC cryptographic proofs.
+* **Saver Yield Dashboard**: Real-time USDC yield tracking, interactive deposit & withdrawal widgets, strategy asset mixes, and community job-support calculations.
+* **Borrower Credit Lifecycle**:
+  * SME profile registration (CAC Registry, Sector selection).
+  * Automated Credit Score analysis & limits generation.
+  * Symmetrical Grid Dashboard presenting outstanding debt (₦), active loan details, and future installment schedule lists.
+* **Daily Split Amortization Control**: Features a dynamic sweep adjustment dial allowing merchants to commit repayment speed configurations (split intensity) directly to the Postgres database.
+* **Izumi AI Financial Advisor**: Direct conversational advisor interface linked to the backend Gemini LLM API, showing live credit-capacity predictions and personalized inventory stocking strategies.
+
+### Local Development Setup
+1. **Install dependencies**:
+   ```bash
+   cd frontend
+   pnpm install
+   ```
+2. **Environment Configuration**:
+   Create a `.env` file in the `frontend` folder containing:
+   ```env
+   VITE_API_BASE_URL=http://localhost:5000
+   ```
+3. **Start Dev Server**:
+   ```bash
+   pnpm run dev
+   ```
+4. **Compile Production Build**:
+   ```bash
+   pnpm run build
+   ```
 
 ---
 
 ## 🚀 Deployment & Operations
 
 * Refer to the [Stitch AI User Interface Mockups](https://stitch.withgoogle.com/u/1/projects/6024950968604456215?pli=1) to view our frontend dashboard designs.
-* Refer to the [Developer Handbook](file:///home/adeyemi/Documents/Work/IZUMI/DEVELOPER_HANDBOOK.md) for endpoint documentation, schema diagrams, and sequence flows.
-* Refer to the [Deployment Guide](file:///home/adeyemi/Documents/Work/IZUMI/DEPLOYMENT.md) to initialize the database and host the containerized server on Railway or Render.
+* Refer to the [Developer Handbook](file:///home/jay/Documents/experiment/IZUMI/DEVELOPER_HANDBOOK.md) for endpoint documentation, schema diagrams, and sequence flows.
+* Refer to the [Deployment Guide](file:///home/jay/Documents/experiment/IZUMI/DEPLOYMENT.md) to initialize the database and host the containerized server on Railway or Render.
