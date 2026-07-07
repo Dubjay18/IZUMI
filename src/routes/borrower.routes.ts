@@ -3,10 +3,12 @@ import { db } from '../services/db.service.js';
 import { complianceService } from '../services/compliance.service.js';
 import { walletService } from '../services/wallet.service.js';
 import { zkService } from '../services/zk.service.js';
+import { aiService } from '../services/ai.service.js';
 
 const BORROWER_LEDGER_TYPES = ['DISBURSEMENT', 'REPAYMENT'] as const;
 
 export async function borrowerRoutes(app: FastifyInstance) {
+  // POST /borrowers/onboard
   app.post('/borrowers/onboard', async (request, reply) => {
     const unlock = await walletService.registrationMutex.lock();
     try {
@@ -52,7 +54,7 @@ export async function borrowerRoutes(app: FastifyInstance) {
         if (!isZkValid) {
           return reply.code(400).send({ error: 'KYC ZK-SNARK proof verification failed' });
         }
-        console.log(`BorrowerRoutes: ZK-KYC verification succeeded for predicted address ${nextAddress}`);
+        app.log.info(`BorrowerRoutes: ZK-KYC verification succeeded for predicted address ${nextAddress}`);
       } else {
         const bvnCheck = await complianceService.verifyBvn(directorBvn, name);
         if (!bvnCheck.success) {
@@ -72,7 +74,6 @@ export async function borrowerRoutes(app: FastifyInstance) {
 
       // 2. Persist User and Borrower records in database
       const user = await db.$transaction(async (prisma) => {
-        // Upsert user if existing saver is registering as borrower, or create new
         const userData = await prisma.user.upsert({
           where: { email },
           update: {
@@ -89,7 +90,6 @@ export async function borrowerRoutes(app: FastifyInstance) {
           }
         });
 
-        // Create Borrower profile
         const borrower = await prisma.borrower.create({
           data: {
             userId: userData.id,
@@ -176,22 +176,20 @@ export async function borrowerRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: 'Invalid request body' });
       }
 
-      const borrower = await db.borrower.findUnique({ where: { id } });
-      if (!borrower) {
-        return reply.code(404).send({ error: 'Borrower not found' });
-      }
-
-      // Allowed borrower fields to update
       const borrowerData: any = {};
       if (body.companyName) borrowerData.companyName = body.companyName;
       if (body.sector) borrowerData.sector = body.sector;
 
-      // Allowed user fields to update
       const userData: any = {};
       if (body.name) userData.name = body.name;
       if (body.phoneNumber) userData.phoneNumber = body.phoneNumber;
 
-      const [updatedBorrower] = await db.$transaction([
+      const borrowerRecord = await db.borrower.findUnique({ where: { id } });
+      if (!borrowerRecord) {
+        return reply.code(404).send({ error: 'Borrower not found' });
+      }
+
+      const txOps: any[] = [
         db.borrower.update({
           where: { id },
           data: borrowerData,
@@ -207,15 +205,77 @@ export async function borrowerRoutes(app: FastifyInstance) {
             },
           },
         }),
-        ...(Object.keys(userData).length > 0
-          ? [db.user.update({ where: { id: borrower.userId }, data: userData })]
-          : []),
-      ]);
+      ];
+
+      if (Object.keys(userData).length > 0) {
+        txOps.push(db.user.update({ where: { id: borrowerRecord.userId }, data: userData }));
+      }
+
+      const [updatedBorrower] = await db.$transaction(txOps);
 
       return updatedBorrower;
     } catch (error) {
       app.log.error(error);
       return reply.code(500).send({ error: `Failed to update borrower: ${(error as Error).message}` });
+    }
+  });
+
+  // POST /borrowers/:id/split-intensity
+  app.post('/borrowers/:id/split-intensity', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const { intensity } = request.body as any;
+
+      if (typeof intensity !== 'number' || intensity < 1 || intensity > 100) {
+        return reply.code(400).send({ error: 'Invalid intensity. Must be a percentage number between 1 and 100.' });
+      }
+
+      const borrower = await db.borrower.update({
+        where: { id },
+        data: { splitIntensity: intensity } as any,
+      });
+
+      return {
+        message: 'Repayment split intensity updated successfully',
+        splitIntensity: (borrower as any).splitIntensity,
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to update split intensity: ${(err as Error).message}` });
+    }
+  });
+
+  // POST /borrowers/:id/terminals
+  app.post('/borrowers/:id/terminals', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const { serialNumber } = request.body as any;
+
+      if (!serialNumber || typeof serialNumber !== 'string') {
+        return reply.code(400).send({ error: 'Missing or invalid terminal serialNumber' });
+      }
+
+      const borrower = await db.borrower.findUnique({ where: { id } }) as any;
+      if (!borrower) {
+        return reply.code(404).send({ error: 'Borrower not found' });
+      }
+      const updatedTerminals = Array.isArray(borrower.terminals) ? [...borrower.terminals] : [];
+      if (!updatedTerminals.includes(serialNumber)) {
+        updatedTerminals.push(serialNumber);
+      }
+
+      const updated = await db.borrower.update({
+        where: { id },
+        data: { terminals: updatedTerminals } as any,
+      });
+
+      return {
+        message: 'POS terminal linked successfully',
+        terminals: (updated as any).terminals,
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to link terminal: ${(err as Error).message}` });
     }
   });
 
@@ -242,11 +302,9 @@ export async function borrowerRoutes(app: FastifyInstance) {
         return reply.code(404).send({ error: 'Borrower not found' });
       }
 
-      // Derive transactions from loan applications
       const derivedEntries: any[] = [];
 
       for (const loan of borrower.loanApplications) {
-        // Disbursement entry — created when loan became ACTIVE
         if (loan.status === 'ACTIVE' || loan.status === 'REPAID' || loan.status === 'DEFAULTED') {
           derivedEntries.push({
             id: `${loan.id}-disbursement`,
@@ -259,7 +317,6 @@ export async function borrowerRoutes(app: FastifyInstance) {
           });
         }
 
-        // Repayment entry — if any amount has been repaid
         if (Number(loan.amountRepaid) > 0) {
           derivedEntries.push({
             id: `${loan.id}-repayment`,
@@ -273,7 +330,6 @@ export async function borrowerRoutes(app: FastifyInstance) {
         }
       }
 
-      // Apply filters
       let filtered = derivedEntries;
       if (query.type && ['DISBURSEMENT', 'REPAYMENT'].includes(query.type.toUpperCase())) {
         filtered = filtered.filter((e) => e.type === query.type!.toUpperCase());
@@ -281,16 +337,12 @@ export async function borrowerRoutes(app: FastifyInstance) {
       if (query.search) {
         const search = query.search.toLowerCase();
         filtered = filtered.filter(
-          (e) =>
-            e.name.toLowerCase().includes(search) ||
-            e.reference.toLowerCase().includes(search)
+          (e) => e.name.toLowerCase().includes(search) || e.reference.toLowerCase().includes(search)
         );
       }
 
-      // Sort by createdAt desc
       filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      // Paginate
       const page = Math.max(1, parseInt(query.page || '1', 10) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(query.limit || '20', 10) || 20));
       const skip = (page - 1) * limit;
@@ -337,7 +389,6 @@ export async function borrowerRoutes(app: FastifyInstance) {
 
       const loans = borrower.loanApplications;
 
-      // Compute totals
       let totalOutstanding = 0;
       let totalRepaid = 0;
       let activeLoansCount = 0;
@@ -351,7 +402,6 @@ export async function borrowerRoutes(app: FastifyInstance) {
           totalOutstanding += approved - repaid;
           activeLoansCount++;
 
-          // Compute next installment from the first active loan
           if (!nextInstallmentDate) {
             const monthlyPayment =
               approved * (1 + Number(loan.interestRate ?? 10) / 100) / Math.max(1, loan.termDays / 30);
@@ -366,11 +416,9 @@ export async function borrowerRoutes(app: FastifyInstance) {
         }
       }
 
-      // Credit limit from borrower record, or default
       const approvedLimit = Number(borrower.approvedLimit ?? 5_000_000);
       const availableCredit = Math.max(0, approvedLimit - totalOutstanding);
 
-      // Account health score based on repayment ratio
       const totalApproved = loans
         .filter((l) => l.status !== 'REJECTED' && l.status !== 'PENDING')
         .reduce((sum, l) => sum + Number(l.amountApproved ?? l.amountRequested), 0);
@@ -394,6 +442,119 @@ export async function borrowerRoutes(app: FastifyInstance) {
     } catch (error) {
       app.log.error(error);
       return reply.code(500).send({ error: `Failed to fetch dashboard: ${(error as Error).message}` });
+    }
+  });
+
+  // POST /ai/chat
+  app.post('/ai/chat', async (request, reply) => {
+    try {
+      const { message, borrowerId } = request.body as any;
+
+      if (!message || typeof message !== 'string') {
+        return reply.code(400).send({ error: 'Missing or invalid prompt message' });
+      }
+
+      let contextStr = '';
+      if (borrowerId) {
+        const borrower = await db.borrower.findUnique({
+          where: { id: borrowerId },
+          include: { loanApplications: true }
+        });
+        if (borrower) {
+          contextStr = `Business Name: ${borrower.companyName}. Sector: ${borrower.sector}. Credit Score: ${borrower.creditScore || 'Not Assessed yet'}. Approved Limit: ${borrower.approvedLimit || 0} NGN.`;
+        }
+      }
+
+      const advice = await aiService.askAdvisoryQuestion(message, contextStr);
+      return { response: advice };
+
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to generate AI advice: ${(err as Error).message}` });
+    }
+  });
+
+  // POST /borrowers/:id/documents
+  app.post('/borrowers/:id/documents', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const { type, fileName, fileSize, base64Data } = request.body as any;
+
+      if (!type || !fileName || !fileSize || !base64Data) {
+        return reply.code(400).send({ error: 'Missing required document upload fields: type, fileName, fileSize, base64Data' });
+      }
+
+      if (!['CAC_CERTIFICATE', 'DIRECTOR_ID'].includes(type)) {
+        return reply.code(400).send({ error: 'Invalid document type. Must be CAC_CERTIFICATE or DIRECTOR_ID' });
+      }
+
+      const borrower = await db.borrower.findUnique({ where: { id } });
+      if (!borrower) {
+        return reply.code(404).send({ error: 'Borrower profile not found' });
+      }
+
+      const doc = await (db as any).kycDocument.create({
+        data: {
+          borrowerId: id,
+          type,
+          fileName,
+          fileSize: Number(fileSize),
+          base64Data,
+        },
+      });
+
+      return {
+        message: 'Document uploaded successfully',
+        documentId: doc.id,
+        type: doc.type,
+        fileName: doc.fileName
+      };
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to upload document: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /borrowers/:id/documents
+  app.get('/borrowers/:id/documents', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+
+      const documents = await (db as any).kycDocument.findMany({
+        where: { borrowerId: id },
+        select: {
+          id: true,
+          type: true,
+          fileName: true,
+          fileSize: true,
+          uploadedAt: true,
+        },
+      });
+
+      return documents;
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to list documents: ${(err as Error).message}` });
+    }
+  });
+
+  // GET /borrowers/documents/:docId
+  app.get('/borrowers/documents/:docId', async (request, reply) => {
+    try {
+      const { docId } = request.params as any;
+
+      const doc = await (db as any).kycDocument.findUnique({
+        where: { id: docId },
+      });
+
+      if (!doc) {
+        return reply.code(404).send({ error: 'Document not found' });
+      }
+
+      return doc;
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve document: ${(err as Error).message}` });
     }
   });
 }

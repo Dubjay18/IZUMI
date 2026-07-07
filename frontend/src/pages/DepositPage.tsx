@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { DurationCard } from "@/components/dashboard/DurationCard";
 import { VirtualAccountCard } from "@/components/dashboard/VirtualAccountCard";
 import { useUser } from "@/context/UserContext";
+import { saverApi } from "@/lib/api";
 
 const DURATION_OPTIONS = [
   {
@@ -33,10 +34,28 @@ export function DepositPage() {
   const [selectedId, setSelectedId] = useState("30");
   const { session } = useUser();
   const navigate = useNavigate();
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simMessage, setSimMessage] = useState("");
 
   const selected = DURATION_OPTIONS.find((d) => d.id === selectedId)!;
 
- 
+  const handleSimulateDeposit = async () => {
+    const va = session?.virtualAccount;
+    if (!va) return;
+    try {
+      setIsSimulating(true);
+      setSimMessage("");
+      // Simulate NGN 150,000 bank transfer collections webhook from Nomba
+      const res = await saverApi.triggerMockDepositWebhook(va.accountNumber, 150000, va.reference);
+      setSimMessage("Success! Webhook received and processed by Railway backend.");
+      alert(`Webhook Triggered: ${res.message || "Simulated deposit swept to vault successfully."}`);
+    } catch (err: any) {
+      console.error(err);
+      setSimMessage(`Error: ${err.message}`);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   return (
     <AppLayout>
@@ -79,12 +98,34 @@ export function DepositPage() {
           {/* Right Column: Virtual Account Card */}
           <div className="col-span-12 md:col-span-7">
             {session?.virtualAccount ? (
-              <VirtualAccountCard
-                accountNumber={session.virtualAccount.accountNumber}
-                bankName={session.virtualAccount.bankName}
-                accountName={session.virtualAccount.accountName}
-                selectedDuration={selected.duration}
-              />
+              <div className="space-y-6">
+                <VirtualAccountCard
+                  accountNumber={session.virtualAccount.accountNumber}
+                  bankName={session.virtualAccount.bankName}
+                  accountName={session.virtualAccount.accountName}
+                  selectedDuration={selected.duration}
+                />
+
+                {/* Webhook Simulation Toolbox */}
+                <div className="p-8 bg-surface-container-low border border-outline-variant/40 rounded-2xl">
+                  <h4 className="font-display font-bold text-lg text-primary mb-2">Nomba Webhook Simulator</h4>
+                  <p className="text-sm text-on-surface-variant mb-6">
+                    Because we are using Nomba's Sandbox rails, you can simulate a real cash transfer (₦150,000 NGN) to your virtual account to verify the live Railway webhook.
+                  </p>
+                  <button
+                    onClick={handleSimulateDeposit}
+                    disabled={isSimulating}
+                    className="px-6 py-3 bg-primary text-secondary-container rounded-lg font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer flex items-center gap-2"
+                  >
+                    {isSimulating ? "Simulating Webhook..." : "Trigger Simulated Funding Webhook"}
+                  </button>
+                  {simMessage && (
+                    <p className={`mt-3 text-xs font-bold ${simMessage.startsWith("Error") ? "text-error" : "text-secondary"}`}>
+                      {simMessage}
+                    </p>
+                  )}
+                </div>
+              </div>
             ) : (
               /* Unauthenticated / no account yet */
               <div className="bg-primary text-on-primary p-12 rounded-2xl shadow-2xl min-h-[600px] flex flex-col items-center justify-center text-center gap-6">
@@ -113,4 +154,3 @@ export function DepositPage() {
     </AppLayout>
   );
 }
-

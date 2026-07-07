@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { loanApi, ApiError } from "@/lib/api";
 import { useUser } from "@/context/UserContext";
 import { AppLayout } from "@/components/layout/AppLayout";
-import type { CreditAnalysis } from "@/lib/types";
 
 const TERM_OPTIONS = [
   { days: 30, label: "30 Days", tag: "Short Term", color: "bg-secondary-fixed/20 text-on-secondary-fixed" },

@@ -9,7 +9,14 @@ const SECTORS = [
   "Fashion", "Real Estate", "Other",
 ];
 
-type Step = "personal" | "business" | "review" | "success";
+type Step = "personal" | "business" | "documents" | "review" | "success";
+
+interface UploadedFile {
+  type: "CAC_CERTIFICATE" | "DIRECTOR_ID";
+  fileName: string;
+  fileSize: number;
+  base64Data: string;
+}
 
 export function BorrowerOnboardingPage() {
   const navigate = useNavigate();
@@ -17,28 +24,65 @@ export function BorrowerOnboardingPage() {
 
   const [step, setStep] = useState<Step>("personal");
 
-  // Personal
+  // Personal Info
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [bvn, setBvn] = useState("");
 
-  // Business
+  // Business Info
   const [companyName, setCompanyName] = useState("");
   const [cacRcNumber, setCacRcNumber] = useState("");
   const [businessTin, setBusinessTin] = useState("");
   const [sector, setSector] = useState("");
 
+  // Document scan/upload states
+  const [cacDoc, setCacDoc] = useState<UploadedFile | null>(null);
+  const [directorIdDoc, setDirectorIdDoc] = useState<UploadedFile | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [borrowerId, setBorrowerId] = useState("");
 
-  const STEPS: Step[] = ["personal", "business", "review", "success"];
+  const STEPS: Step[] = ["personal", "business", "documents", "review", "success"];
   const stepIndex = STEPS.indexOf(step);
+
+  const handleFileUpload = (type: "CAC_CERTIFICATE" | "DIRECTOR_ID") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check size limit: max 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size exceeds 5MB limit.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = reader.result as string;
+      const uploadedFile: UploadedFile = {
+        type,
+        fileName: file.name,
+        fileSize: file.size,
+        base64Data
+      };
+
+      if (type === "CAC_CERTIFICATE") {
+        setCacDoc(uploadedFile);
+      } else {
+        setDirectorIdDoc(uploadedFile);
+      }
+    };
+    reader.onerror = () => {
+      alert("Failed to read file.");
+    };
+    reader.readAsDataURL(file);
+  };
 
   async function handleSubmit() {
     setLoading(true);
     setError(null);
     try {
+      // 1. Submit basic business details for KYB onboarding
       const res = await borrowerApi.onboard({
         name,
         email,
@@ -48,8 +92,30 @@ export function BorrowerOnboardingPage() {
         businessTin,
         sector,
       });
+
+      // Log in borrower locally
       loginAsBorrower(res.user.id, res.user.name, res.user.email, res.borrowerId);
       setBorrowerId(res.borrowerId);
+
+      // 2. Upload Kyc Documents if present
+      if (cacDoc) {
+        await borrowerApi.uploadDocument(res.borrowerId, {
+          type: cacDoc.type,
+          fileName: cacDoc.fileName,
+          fileSize: cacDoc.fileSize,
+          base64Data: cacDoc.base64Data
+        });
+      }
+
+      if (directorIdDoc) {
+        await borrowerApi.uploadDocument(res.borrowerId, {
+          type: directorIdDoc.type,
+          fileName: directorIdDoc.fileName,
+          fileSize: directorIdDoc.fileSize,
+          base64Data: directorIdDoc.base64Data
+        });
+      }
+
       setStep("success");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : (err as Error).message);
@@ -128,7 +194,7 @@ export function BorrowerOnboardingPage() {
 
           {/* ── Step 2: Business ─────────────────────────────────────── */}
           {step === "business" && (
-            <form onSubmit={e => { e.preventDefault(); setStep("review"); }} className="space-y-6">
+            <form onSubmit={e => { e.preventDefault(); setStep("documents"); }} className="space-y-6">
               <div>
                 <h2 className="font-display text-[22px] font-semibold text-on-surface mb-1">Business Details</h2>
                 <p className="text-sm text-on-surface-variant font-body">CAC registration & compliance information.</p>
@@ -161,12 +227,95 @@ export function BorrowerOnboardingPage() {
               </div>
               <div className="flex gap-3">
                 <button type="button" onClick={() => setStep("personal")} className="px-5 py-3 border border-outline-variant text-on-surface-variant rounded-xl font-body text-sm hover:bg-surface-container transition-all">Back</button>
-                <button type="submit" className="flex-1 py-3 bg-primary text-secondary-fixed rounded-xl font-body font-bold text-[14px] hover:shadow-xl active:scale-[0.98] transition-all">Review Application</button>
+                <button type="submit" className="flex-1 py-3 bg-primary text-secondary-fixed rounded-xl font-body font-bold text-[14px] hover:shadow-xl active:scale-[0.98] transition-all">Continue to Documents</button>
               </div>
             </form>
           )}
 
-          {/* ── Step 3: Review ───────────────────────────────────────── */}
+          {/* ── Step 3: Documents ────────────────────────────────────── */}
+          {step === "documents" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="font-display text-[22px] font-semibold text-on-surface mb-1">Company Documents</h2>
+                <p className="text-sm text-on-surface-variant font-body">Upload your corporate and identification documents.</p>
+              </div>
+
+              <div className="space-y-6">
+                {/* CAC Certificate upload */}
+                <div>
+                  <label className="text-[12px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">
+                    CAC Certificate (Image/PDF)
+                  </label>
+                  <div className="border-2 border-dashed border-outline-variant rounded-xl p-6 text-center hover:border-primary transition-all relative">
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleFileUpload("CAC_CERTIFICATE")}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <span className="material-symbols-outlined text-[32px] text-outline mb-2">
+                      corporate_fare
+                    </span>
+                    {cacDoc ? (
+                      <div className="text-sm text-on-surface font-body">
+                        <p className="font-semibold text-primary">{cacDoc.fileName}</p>
+                        <p className="text-xs text-on-surface-variant mt-0.5">{(cacDoc.fileSize / 1024).toFixed(1)} KB</p>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-on-surface-variant font-body">
+                        <p className="font-semibold">Tap to capture or upload certificate</p>
+                        <p className="mt-1">Supports PDF, PNG, JPG up to 5MB</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Director ID upload */}
+                <div>
+                  <label className="text-[12px] font-body font-semibold uppercase tracking-[0.15em] text-on-surface-variant block mb-2">
+                    Director ID (Driver's License/NIN/Passport)
+                  </label>
+                  <div className="border-2 border-dashed border-outline-variant rounded-xl p-6 text-center hover:border-primary transition-all relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleFileUpload("DIRECTOR_ID")}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <span className="material-symbols-outlined text-[32px] text-outline mb-2">
+                      badge
+                    </span>
+                    {directorIdDoc ? (
+                      <div className="text-sm text-on-surface font-body">
+                        <p className="font-semibold text-primary">{directorIdDoc.fileName}</p>
+                        <p className="text-xs text-on-surface-variant mt-0.5">{(directorIdDoc.fileSize / 1024).toFixed(1)} KB</p>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-on-surface-variant font-body">
+                        <p className="font-semibold">Scan or upload Director's ID</p>
+                        <p className="mt-1">Opens phone camera on mobile scanner</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-8">
+                <button type="button" onClick={() => setStep("business")} className="px-5 py-3 border border-outline-variant text-on-surface-variant rounded-xl font-body text-sm hover:bg-surface-container transition-all">Back</button>
+                <button
+                  type="button"
+                  onClick={() => setStep("review")}
+                  disabled={!cacDoc || !directorIdDoc}
+                  className="flex-1 py-3 bg-primary text-secondary-fixed rounded-xl font-body font-bold text-[14px] hover:shadow-xl active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Review Application
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 4: Review ───────────────────────────────────────── */}
           {step === "review" && (
             <div className="space-y-6">
               <div>
@@ -182,6 +331,8 @@ export function BorrowerOnboardingPage() {
                   { label: "CAC RC", value: cacRcNumber },
                   { label: "TIN", value: businessTin },
                   { label: "Sector", value: sector },
+                  { label: "CAC Doc", value: cacDoc?.fileName || "Missing" },
+                  { label: "ID Doc", value: directorIdDoc?.fileName || "Missing" },
                 ].map(item => (
                   <div key={item.label} className="flex justify-between items-center py-2.5 border-b border-outline-variant/40 last:border-0">
                     <span className="text-[12px] font-body font-semibold uppercase tracking-[0.1em] text-on-surface-variant">{item.label}</span>
@@ -193,7 +344,7 @@ export function BorrowerOnboardingPage() {
                 <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-error text-sm font-body">{error}</div>
               )}
               <div className="flex gap-3">
-                <button type="button" onClick={() => setStep("business")} className="px-5 py-3 border border-outline-variant text-on-surface-variant rounded-xl font-body text-sm hover:bg-surface-container transition-all">Edit</button>
+                <button type="button" onClick={() => setStep("documents")} className="px-5 py-3 border border-outline-variant text-on-surface-variant rounded-xl font-body text-sm hover:bg-surface-container transition-all">Edit</button>
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
@@ -207,7 +358,7 @@ export function BorrowerOnboardingPage() {
             </div>
           )}
 
-          {/* ── Step 4: Success ───────────────────────────────────────── */}
+          {/* ── Step 5: Success ───────────────────────────────────────── */}
           {step === "success" && (
             <div className="text-center space-y-6">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 border-2 border-primary mx-auto">

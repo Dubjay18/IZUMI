@@ -335,4 +335,92 @@ export async function loanRoutes(app: FastifyInstance) {
       return reply.code(500).send({ error: `Failed to accept loan: ${(error as Error).message}` });
     }
   });
+
+  // GET /underwriter/loans
+  app.get('/underwriter/loans', async (request, reply) => {
+    try {
+      const pendingLoans = await db.loanApplication.findMany({
+        where: {
+          status: { in: ['PENDING', 'AI_ASSESSED', 'APPROVED'] }
+        },
+        include: {
+          borrower: {
+            include: {
+              user: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return pendingLoans.map(l => ({
+        id: l.id,
+        borrowerId: l.borrowerId,
+        companyName: l.borrower.companyName,
+        sector: l.borrower.sector,
+        kybStatus: l.borrower.kybStatus,
+        cacRcNumber: l.borrower.cacRcNumber,
+        businessTin: l.borrower.businessTin,
+        amountRequested: Number(l.amountRequested),
+        amountApproved: l.amountApproved ? Number(l.amountApproved) : null,
+        status: l.status,
+        creditScore: l.creditScore,
+        creditGrade: l.creditGrade,
+        aiAnalysis: l.aiAnalysis,
+        termDays: l.termDays,
+        timestamp: l.createdAt
+      }));
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to retrieve pending underwriter loans: ${(err as Error).message}` });
+    }
+  });
+
+  // POST /underwriter/loans/:id/assess
+  app.post('/underwriter/loans/:id/assess', async (request, reply) => {
+    try {
+      const { id } = request.params as any;
+      const { action, amountApproved } = request.body as any;
+
+      if (!action || !['APPROVE', 'REJECT'].includes(action)) {
+        return reply.code(400).send({ error: 'Invalid underwriter action. Must be APPROVE or REJECT' });
+      }
+
+      const loan = await db.loanApplication.findUnique({
+        where: { id },
+        include: { borrower: true }
+      });
+
+      if (!loan) {
+        return reply.code(404).send({ error: 'Loan application not found' });
+      }
+
+      let updatedStatus: any = 'REJECTED';
+      let approvedAmount = null;
+
+      if (action === 'APPROVE') {
+        updatedStatus = 'APPROVED';
+        approvedAmount = amountApproved ? Number(amountApproved) : Number(loan.amountRequested);
+      }
+
+      const updatedLoan = await db.loanApplication.update({
+        where: { id },
+        data: {
+          status: updatedStatus,
+          amountApproved: approvedAmount
+        }
+      });
+
+      return {
+        message: `Loan application ${action.toLowerCase()}d successfully by underwriter`,
+        loanId: updatedLoan.id,
+        status: updatedLoan.status,
+        amountApproved: updatedLoan.amountApproved ? Number(updatedLoan.amountApproved) : null
+      };
+
+    } catch (err) {
+      app.log.error(err);
+      return reply.code(500).send({ error: `Failed to assess loan application: ${(err as Error).message}` });
+    }
+  });
 }

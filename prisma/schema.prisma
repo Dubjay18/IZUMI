@@ -79,10 +79,13 @@ model Borrower {
   creditScore     Int?
   creditGrade     String?
   approvedLimit   Decimal?
+  splitIntensity  Int               @default(10)
+  terminals       String[]          @default([])
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   loanApplications LoanApplication[]
   repaymentAccount VirtualAccount?
+  documents       KycDocument[]
 }
 
 model LoanApplication {
@@ -158,4 +161,15 @@ model Transaction {
   amount    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model KycDocument {
+  id          String   @id @default(uuid())
+  borrowerId  String
+  borrower    Borrower @relation(fields: [borrowerId], references: [id], onDelete: Cascade)
+  type        String   // 'CAC_CERTIFICATE' | 'DIRECTOR_ID'
+  fileName    String
+  fileSize    Int
+  base64Data  String
+  uploadedAt  DateTime @default(now())
 }
