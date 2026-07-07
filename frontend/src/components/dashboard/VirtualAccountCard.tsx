@@ -5,6 +5,8 @@ interface VirtualAccountCardProps {
   bankName: string;
   accountName: string;
   selectedDuration: string;
+  onConfirm?: () => Promise<void>;
+  isConfirming?: boolean;
 }
 
 export function VirtualAccountCard({
@@ -12,6 +14,8 @@ export function VirtualAccountCard({
   bankName,
   accountName,
   selectedDuration,
+  onConfirm,
+  isConfirming = false,
 }: VirtualAccountCardProps) {
   const [toast, setToast] = useState(false);
 
@@ -146,8 +150,19 @@ export function VirtualAccountCard({
         </div>
       </div>
 
-      <button className="relative z-10 mt-10 w-full py-5 bg-secondary-container text-on-secondary-fixed font-bold rounded-xl text-lg hover:bg-secondary transition-all active:scale-[0.98] duration-150">
-        Confirm Funding Transaction
+      <button
+        onClick={onConfirm}
+        disabled={isConfirming}
+        className="relative z-10 mt-10 w-full py-5 bg-secondary-container text-on-secondary-fixed font-bold rounded-xl text-lg hover:bg-secondary transition-all active:scale-[0.98] duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {isConfirming ? (
+          <>
+            <span className="material-symbols-outlined animate-spin text-base">progress_activity</span>
+            Checking Deposits...
+          </>
+        ) : (
+          "Confirm Funding Transaction"
+        )}
       </button>
 
       {/* Toast notification */}

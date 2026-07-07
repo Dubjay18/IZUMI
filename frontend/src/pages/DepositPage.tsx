@@ -34,26 +34,25 @@ export function DepositPage() {
   const [selectedId, setSelectedId] = useState("30");
   const { session } = useUser();
   const navigate = useNavigate();
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simMessage, setSimMessage] = useState("");
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
 
   const selected = DURATION_OPTIONS.find((d) => d.id === selectedId)!;
 
-  const handleSimulateDeposit = async () => {
-    const va = session?.virtualAccount;
-    if (!va) return;
+  const handleConfirmTransaction = async () => {
+    if (!session?.userId) return;
     try {
-      setIsSimulating(true);
-      setSimMessage("");
-      // Simulate NGN 150,000 bank transfer collections webhook from Nomba
-      const res = await saverApi.triggerMockDepositWebhook(va.accountNumber, 150000, va.reference);
-      setSimMessage("Success! Webhook received and processed by Railway backend.");
-      alert(`Webhook Triggered: ${res.message || "Simulated deposit swept to vault successfully."}`);
+      setIsConfirming(true);
+      setConfirmMessage("");
+      const res = await saverApi.syncDeposits(session.userId);
+      setConfirmMessage(res.message || "Sync complete! Any new deposits detected have been swept and credited to your balance.");
+      alert(res.message || "Sync complete! Any new deposits detected have been swept and credited to your balance.");
     } catch (err: any) {
-      console.error(err);
-      setSimMessage(`Error: ${err.message}`);
+      console.error("Sync error:", err);
+      setConfirmMessage(`Error confirming deposit: ${err.message}`);
+      alert(`Error confirming deposit: ${err.message}`);
     } finally {
-      setIsSimulating(false);
+      setIsConfirming(false);
     }
   };
 
@@ -104,27 +103,14 @@ export function DepositPage() {
                   bankName={session.virtualAccount.bankName}
                   accountName={session.virtualAccount.accountName}
                   selectedDuration={selected.duration}
+                  onConfirm={handleConfirmTransaction}
+                  isConfirming={isConfirming}
                 />
-
-                {/* Webhook Simulation Toolbox */}
-                <div className="p-8 bg-surface-container-low border border-outline-variant/40 rounded-2xl">
-                  <h4 className="font-display font-bold text-lg text-primary mb-2">Nomba Webhook Simulator</h4>
-                  <p className="text-sm text-on-surface-variant mb-6">
-                    Because we are using Nomba's Sandbox rails, you can simulate a real cash transfer (₦150,000 NGN) to your virtual account to verify the live Railway webhook.
-                  </p>
-                  <button
-                    onClick={handleSimulateDeposit}
-                    disabled={isSimulating}
-                    className="px-6 py-3 bg-primary text-secondary-container rounded-lg font-bold text-xs uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer flex items-center gap-2"
-                  >
-                    {isSimulating ? "Simulating Webhook..." : "Trigger Simulated Funding Webhook"}
-                  </button>
-                  {simMessage && (
-                    <p className={`mt-3 text-xs font-bold ${simMessage.startsWith("Error") ? "text-error" : "text-secondary"}`}>
-                      {simMessage}
-                    </p>
-                  )}
-                </div>
+                {confirmMessage && (
+                  <div className={`p-4 rounded-xl text-sm font-semibold ${confirmMessage.startsWith("Error") ? "bg-error/10 text-error border border-error/30" : "bg-secondary-fixed/10 text-secondary border border-secondary/20"}`}>
+                    {confirmMessage}
+                  </div>
+                )}
               </div>
             ) : (
               /* Unauthenticated / no account yet */
