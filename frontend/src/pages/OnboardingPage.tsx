@@ -582,6 +582,12 @@ export function OnboardingPage() {
                       </div>
                     )}
 
+                    {error && (
+                      <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-error text-sm font-body animate-in fade-in duration-300">
+                        {error}
+                      </div>
+                    )}
+
                     <div className="pt-4 flex justify-start">
                       <button
                         type="button"
