@@ -187,6 +187,12 @@ export const borrowerApi = {
 
   getDocumentDetails: (docId: string) =>
     request<{ id: string; type: string; fileName: string; fileSize: number; base64Data: string; uploadedAt: string }>(`/borrowers/documents/${docId}`),
+
+  updateSplitIntensity: (id: string, intensity: number) =>
+    request<{ message: string; splitIntensity: number }>(`/borrowers/${id}/split-intensity`, {
+      method: "POST",
+      body: JSON.stringify({ intensity }),
+    }),
 };
 
 // ─── Loan endpoints ───────────────────────────────────────────────────────────

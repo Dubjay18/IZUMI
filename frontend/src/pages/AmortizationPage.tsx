@@ -1,14 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ExposureHero } from "@/components/dashboard/ExposureHero";
 import { IntensityDial } from "@/components/dashboard/IntensityDial";
 import { SplitIntelligence } from "@/components/dashboard/SplitIntelligence";
 import { AmortizationForecast } from "@/components/dashboard/AmortizationForecast";
 import { LiveSweepLedger } from "@/components/dashboard/LiveSweepLedger";
+import { useUser } from "@/context/UserContext";
+import { useBorrowerProfile } from "@/hooks/useBorrowerProfile";
 
 export function AmortizationPage() {
-  // Default sweep intensity set to 40% (Moderate)
+  const { session } = useUser();
+  const { profile } = useBorrowerProfile(session?.borrowerId);
   const [intensity, setIntensity] = useState(40);
+
+  // Sync state when profile is loaded from backend
+  useEffect(() => {
+    if (profile?.splitIntensity !== undefined) {
+      setIntensity(profile.splitIntensity);
+    }
+  }, [profile]);
 
   return (
     <AppLayout>

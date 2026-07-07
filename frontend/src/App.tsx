@@ -14,6 +14,7 @@ import { ZKCompliancePage } from "@/pages/ZKCompliancePage";
 import { WithdrawalPage } from "@/pages/WithdrawalPage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
 import { BorrowerOnboardingPage } from "@/pages/BorrowerOnboardingPage";
+import { OnboardingSelectionPage } from "@/pages/OnboardingSelectionPage";
 import { LoanApplicationPage } from "@/pages/LoanApplicationPage";
 import { LoanResultPage } from "@/pages/LoanResultPage";
 import { LoanAgreementPage } from "@/pages/LoanAgreementPage";
@@ -54,7 +55,8 @@ function App() {
       <Routes>
         {/* ── Tier 1: Landing & Onboarding ── */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/onboard" element={<OnboardingPage />} />
+        <Route path="/onboard" element={<OnboardingSelectionPage />} />
+        <Route path="/saver/onboard" element={<OnboardingPage />} />
         <Route path="/borrow/onboard" element={<BorrowerOnboardingPage />} />
         <Route path="/onboard/mobile-kyc" element={<MobileKycPage />} />
 

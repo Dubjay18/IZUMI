@@ -315,7 +315,7 @@ export function OnboardingPage() {
                 <div className="pt-6 flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => navigate("/")}
+                    onClick={() => navigate("/onboard")}
                     className="font-subhead-caps text-subhead-caps text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-base">arrow_back</span>

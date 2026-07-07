@@ -132,7 +132,7 @@ export function DepositPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => navigate("/onboard")}
+                  onClick={() => navigate("/saver/onboard")}
                   className="px-10 py-3.5 bg-secondary-container text-on-secondary-fixed font-bold rounded-xl text-[14px] font-body hover:shadow-lg active:scale-[0.98] transition-all"
                 >
                   Start Onboarding

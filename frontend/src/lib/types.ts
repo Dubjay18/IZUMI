@@ -243,6 +243,8 @@ export interface BorrowerProfile {
   creditScore: number | null;
   creditGrade: string | null;
   approvedLimit: number | null;
+  splitIntensity: number;
+  terminals: string[];
   createdAt: string;
   updatedAt: string;
   user: {

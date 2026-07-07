@@ -36,7 +36,7 @@ export function Hero() {
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <button
               id="hero-cta-saver"
-              onClick={() => navigate("/onboard")}
+              onClick={() => navigate("/saver/onboard")}
               className="group relative bg-primary text-secondary-fixed px-10 py-5 rounded-full text-[14px] font-body uppercase tracking-[0.15em] font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-3 overflow-hidden"
             >
               <span className="material-symbols-outlined text-[18px] text-secondary-fixed/70 group-hover:text-secondary-fixed transition-colors">

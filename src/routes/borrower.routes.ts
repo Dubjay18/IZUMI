@@ -320,28 +320,68 @@ export async function borrowerRoutes(app: FastifyInstance) {
       const derivedEntries: any[] = [];
 
       for (const loan of borrower.loanApplications) {
-        if (loan.status === 'ACTIVE' || loan.status === 'REPAID' || loan.status === 'DEFAULTED') {
+        if (loan.status === 'ACTIVE' || loan.status === 'REPAID' || loan.status === 'DEFAULTED' || loan.status === 'DISBURSED') {
           derivedEntries.push({
             id: `${loan.id}-disbursement`,
             name: 'Loan Disbursement',
             type: 'DISBURSEMENT',
             amount: Number(loan.amountApproved ?? loan.amountRequested),
             status: 'Completed',
-            createdAt: loan.updatedAt.toISOString(),
+            createdAt: loan.createdAt.toISOString(),
             reference: loan.id,
           });
         }
+      }
 
-        if (Number(loan.amountRepaid) > 0) {
-          derivedEntries.push({
-            id: `${loan.id}-repayment`,
-            name: loan.status === 'REPAID' ? 'Full Repayment' : 'Partial Repayment',
-            type: 'REPAYMENT',
-            amount: Number(loan.amountRepaid),
-            status: 'Completed',
-            createdAt: loan.updatedAt.toISOString(),
-            reference: loan.id,
-          });
+      // Query actual sweep repayments from WebhookLog
+      let hasWebhooks = false;
+      const virtualAccount = await db.virtualAccount.findUnique({
+        where: { borrowerId: id }
+      });
+      if (virtualAccount) {
+        const webhookLogs = await db.webhookLog.findMany({
+          where: {
+            status: 'PROCESSED',
+            payload: {
+              path: ['data', 'transaction', 'aliasAccountReference'],
+              equals: virtualAccount.reference
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (webhookLogs.length > 0) {
+          hasWebhooks = true;
+          for (const log of webhookLogs) {
+            const payload = log.payload as any;
+            const tx = payload.data?.transaction || {};
+            derivedEntries.push({
+              id: log.id,
+              name: 'Daily POS Sweep',
+              type: 'REPAYMENT',
+              amount: Number(tx.transactionAmount),
+              status: 'Completed',
+              createdAt: log.createdAt.toISOString(),
+              reference: tx.transactionId || log.id,
+            });
+          }
+        }
+      }
+
+      // Fallback to aggregated repayments if no webhook logs exist
+      if (!hasWebhooks) {
+        for (const loan of borrower.loanApplications) {
+          if (Number(loan.amountRepaid) > 0) {
+            derivedEntries.push({
+              id: `${loan.id}-repayment`,
+              name: loan.status === 'REPAID' ? 'Full Repayment' : 'Partial Repayment',
+              type: 'REPAYMENT',
+              amount: Number(loan.amountRepaid),
+              status: 'Completed',
+              createdAt: loan.updatedAt.toISOString(),
+              reference: loan.id,
+            });
+          }
         }
       }
 

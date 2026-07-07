@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useLoans } from "@/hooks/useLoans";
+import { borrowerApi } from "@/lib/api";
 
 interface SplitIntelligenceProps {
   percent: number;
@@ -10,6 +11,8 @@ export function SplitIntelligence({ percent }: SplitIntelligenceProps) {
   const { session } = useUser();
   const { activeLoan } = useLoans(session?.borrowerId);
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Use ₦1,200,000 default if no loan has been scored
   const monthlyRevenue = activeLoan?.amountRequested
@@ -25,9 +28,20 @@ export function SplitIntelligence({ percent }: SplitIntelligenceProps) {
   const formatNGN = (val: number) =>
     "₦" + val.toLocaleString("en-NG", { maximumFractionDigits: 0 });
 
-  function handleCommit() {
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+  async function handleCommit() {
+    if (!session?.borrowerId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await borrowerApi.updateSplitIntensity(session.borrowerId, percent);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      console.error("Failed to commit split intensity:", err);
+      setError(err.message || "Failed to update sweep configuration.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -71,16 +85,28 @@ export function SplitIntelligence({ percent }: SplitIntelligenceProps) {
       </div>
 
       {success && (
-        <div className="mt-4 p-3 bg-green-50 border border-green-200 text-green-700 text-xs font-body rounded-lg text-center animate-pulse">
+        <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-xs font-body rounded-lg text-center font-semibold">
           Sweep configuration updated successfully.
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 p-3 bg-error/10 border border-error/30 text-error text-xs font-body rounded-lg text-center font-semibold">
+          {error}
         </div>
       )}
 
       <button
         onClick={handleCommit}
-        className="w-full mt-6 py-4 bg-primary text-secondary-fixed font-bold text-[13px] uppercase tracking-[0.15em] rounded-full hover:scale-[1.01] active:scale-95 transition-all shadow-xl"
+        disabled={loading}
+        className="w-full mt-6 py-4 bg-primary text-secondary-fixed font-bold text-[13px] uppercase tracking-[0.15em] rounded-full hover:scale-[1.01] active:scale-95 transition-all shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
-        Commit Adjustment
+        {loading ? (
+          <>
+            <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+            Updating Sweeps...
+          </>
+        ) : "Commit Adjustment"}
       </button>
     </div>
   );

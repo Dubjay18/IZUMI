@@ -1,9 +1,13 @@
 import { useUser } from "@/context/UserContext";
 import { useLoans } from "@/hooks/useLoans";
+import { useBorrowerProfile } from "@/hooks/useBorrowerProfile";
 
 export function ExposureHero() {
   const { session } = useUser();
-  const { activeLoan, loading } = useLoans(session?.borrowerId);
+  const { activeLoan, loading: loansLoading } = useLoans(session?.borrowerId);
+  const { profile, loading: profileLoading } = useBorrowerProfile(session?.borrowerId);
+
+  const loading = loansLoading || profileLoading;
 
   const approvedAmount = activeLoan?.amountApproved
     ? Number(activeLoan.amountApproved)
@@ -13,14 +17,23 @@ export function ExposureHero() {
     : 0;
   const outstanding = Math.max(approvedAmount - repaidAmount, 0);
 
+  const limitAmount = profile?.approvedLimit
+    ? Number(profile.approvedLimit)
+    : 5000000;
+
   const formattedOutstanding = outstanding.toLocaleString("en-NG", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
+  const formattedLimit = limitAmount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   const apr = activeLoan?.interestRate
-    ? (Number(activeLoan.interestRate) * 100).toFixed(1)
-    : "12.0";
+    ? Number(activeLoan.interestRate).toFixed(1)
+    : profile?.creditGrade === "A" ? "8.5" : profile?.creditGrade === "B" ? "12.0" : "15.0";
 
   return (
     <section className="mb-[80px] flex flex-col md:flex-row justify-between items-end">
@@ -32,7 +45,7 @@ export function ExposureHero() {
           <div className="h-16 w-64 bg-surface-container-high animate-pulse rounded-xl" />
         ) : (
           <h2 className="text-[56px] font-display font-bold text-primary leading-[1.1] tracking-[-0.02em]">
-            ₦{activeLoan ? formattedOutstanding : "5,000,000.00"}
+            ₦{activeLoan ? formattedOutstanding : formattedLimit}
           </h2>
         )}
         <div className="flex items-center gap-2 mt-4">
