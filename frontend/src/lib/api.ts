@@ -93,6 +93,12 @@ export const saverApi = {
 
   getPortfolio: (userId: string) =>
     request<import("./types").PortfolioResponse>(`/savers/${userId}/portfolio`),
+
+  syncDeposits: (userId: string, tier?: number) =>
+    request<{ success: boolean; message: string; usdSynced: number }>(`/savers/${userId}/sync`, {
+      method: "POST",
+      body: JSON.stringify({ tier })
+    }),
 };
 
 export const vaultApi = {
