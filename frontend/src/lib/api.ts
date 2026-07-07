@@ -17,9 +17,14 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const headers: HeadersInit = { ...options.headers };
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+  
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
+    headers,
   });
 
   const data = await res.json();
