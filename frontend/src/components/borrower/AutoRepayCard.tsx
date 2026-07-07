@@ -3,7 +3,7 @@ import { useUser } from "@/context/UserContext";
 import { useLoans } from "@/hooks/useLoans";
 
 function formatUSD(n: number): string {
-  return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "₦" + n.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function nextInstallment(loans: { amountApproved: string | null; interestRate: string | null; termDays: number }[]) {

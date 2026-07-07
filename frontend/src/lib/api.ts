@@ -40,6 +40,7 @@ async function request<T>(
 
 import type {
   SaverOnboardResponse,
+  LoginResponse,
   BalanceResponse,
   LedgerEntry,
   WithdrawResponse,
@@ -47,7 +48,7 @@ import type {
 
 export const saverApi = {
   login: (email: string) =>
-    request<SaverOnboardResponse>("/savers/login", {
+    request<LoginResponse>("/savers/login", {
       method: "POST",
       body: JSON.stringify({ email })
     }),
@@ -237,6 +238,14 @@ export const loanApi = {
     request<LoanAcceptResponse>(`/loans/${id}/accept`, {
       method: "POST",
       body: body ? JSON.stringify(body) : undefined,
+    }),
+};
+
+export const aiApi = {
+  chat: (body: { message: string; borrowerId?: string }) =>
+    request<{ response: string }>("/ai/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
 };
 

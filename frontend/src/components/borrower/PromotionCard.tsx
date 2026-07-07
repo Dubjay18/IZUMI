@@ -1,4 +1,13 @@
+import { useUser } from "@/context/UserContext";
+import { useBorrowerProfile } from "@/hooks/useBorrowerProfile";
+
 export function PromotionCard() {
+  const { session } = useUser();
+  const { profile } = useBorrowerProfile(session?.borrowerId);
+
+  const limitAmount = profile?.approvedLimit ? Number(profile.approvedLimit) : 5000000;
+  const formattedLimit = limitAmount.toLocaleString("en-NG", { maximumFractionDigits: 0 });
+
   return (
     <div className="bg-primary-container rounded-xl p-6 relative overflow-hidden group cursor-pointer">
       <div className="relative z-10">
@@ -6,7 +15,7 @@ export function PromotionCard() {
           EXCLUSIVE OFFER
         </span>
         <h4 className="font-headline-md text-lg text-primary-fixed leading-tight mb-2">
-          Zero-fee working capital up to $1M
+          Zero-fee working capital up to ₦{formattedLimit}
         </h4>
         <p className="text-on-primary-container text-xs opacity-80 mb-4 font-body-md">
           Based on your stellar credit health, you've been pre-selected.

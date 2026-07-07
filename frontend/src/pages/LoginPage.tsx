@@ -44,7 +44,7 @@ export function LoginPage() {
           res.name,
           res.email,
           res.borrowerId || "",
-          res.virtualAccount
+          res.virtualAccount || undefined
         );
         navigate("/borrow/dashboard");
       } else {
@@ -53,7 +53,7 @@ export function LoginPage() {
           res.name,
           res.email,
           res.walletAddress,
-          res.virtualAccount
+          res.virtualAccount!
         );
         navigate("/dashboard");
       }

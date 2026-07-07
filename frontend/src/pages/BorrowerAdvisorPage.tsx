@@ -3,6 +3,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { CreditHealthGauge } from "@/components/borrower/CreditHealthGauge";
 import { InventoryTips } from "@/components/borrower/InventoryTips";
 import { PromotionCard } from "@/components/borrower/PromotionCard";
+import { useUser } from "@/context/UserContext";
+import { aiApi } from "@/lib/api";
 
 type Message = {
   id: string;
@@ -15,31 +17,6 @@ type Message = {
 const USER_AVATAR =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDKlUcO8bfvrqBDZvJBJJPI5PiE8zz3VuTznQ3t6X3cXd9l_-ZngRtDkmjCHkhIN09KqbCjT68wE3qMVUwfSU2K_QqsP8p-V5g3IhGTBLfbGR55WzSk-tSQUR_qYX6QVlC0r93wl9ZryyiBZR8qEckVq2WJz4Dn7mTpixssvG3xILmieNurMHjajjeKALqHRzniT2CM0qF-cVE4mg6mVQCQmv1CWw4dVMK-epEHsO59euhaBkkmedfg";
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "1",
-    role: "ai",
-    content:
-      "Good morning, Julian. I've analyzed your cash flow trends from the last quarter. Based on your current trajectory, you have a high probability of qualifying for a tier-one expansion credit line.",
-    timestamp: "Izumi AI • 09:41 AM",
-  },
-  {
-    id: "2",
-    role: "user",
-    content:
-      "That's great news. How would a $500k inventory loan affect my monthly debt-to-income ratio given my projected Q4 revenue?",
-    timestamp: "You • 09:43 AM",
-  },
-  {
-    id: "3",
-    role: "ai",
-    content:
-      "I've calculated two scenarios for you. With your current 18% growth rate, a $500k facility would keep your DTI at a healthy 12.4%.",
-    timestamp: "Izumi AI • 09:45 AM",
-    analysis: { dti: "12.4%", barWidth: "12.4%" },
-  },
-];
-
 const SUGGESTIONS = [
   "Risk Assessment",
   "Inventory Strategy",
@@ -47,7 +24,19 @@ const SUGGESTIONS = [
 ];
 
 export function BorrowerAdvisorPage() {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const { session } = useUser();
+  
+  // Custom initial message using borrower's real name if logged in
+  const initialMessages: Message[] = [
+    {
+      id: "1",
+      role: "ai",
+      content: `Good day, ${session?.name || "business partner"}. I am your Izumi AI Advisory assistant. How can I help you optimize your business cashflow, credit health, or inventory strategy today?`,
+      timestamp: "Izumi AI • Just now",
+    },
+  ];
+
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -60,7 +49,7 @@ export function BorrowerAdvisorPage() {
     }
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputValue.trim();
     if (!text || isTyping) return;
 
@@ -75,17 +64,32 @@ export function BorrowerAdvisorPage() {
     setInputValue("");
     setIsTyping(true);
 
-    setTimeout(() => {
+    try {
+      const res = await aiApi.chat({
+        message: text,
+        borrowerId: session?.borrowerId || undefined,
+      });
+
       const aiMsg: Message = {
         id: `ai-${Date.now()}`,
         role: "ai",
-        content:
-          "Thank you for your question. Based on your credit profile, I'd recommend scheduling a call with your relationship manager to discuss specific terms tailored to your situation.",
+        content: res.response,
         timestamp: "Izumi AI • Just now",
       };
+
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err: any) {
+      console.error("AI advisory chat failed:", err);
+      const errorMsg: Message = {
+        id: `err-${Date.now()}`,
+        role: "ai",
+        content: `Error: ${err.message || "Failed to communicate with Izumi AI Advisor. Please try again."}`,
+        timestamp: "System • Just now",
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1200);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

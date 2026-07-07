@@ -3,7 +3,7 @@ import { useBorrowerDashboard } from "@/hooks/useBorrowerDashboard";
 import { useNavigate } from "react-router-dom";
 
 function formatUSD(n: number): string {
-  return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "₦" + n.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function CreditAvailableCard() {

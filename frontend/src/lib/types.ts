@@ -94,6 +94,18 @@ export interface SaverOnboardResponse {
   virtualAccount: VirtualAccount;
 }
 
+export interface LoginResponse {
+  message: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: "SAVER" | "BORROWER" | "UNDERWRITER";
+  kycStatus: string;
+  walletAddress: string;
+  virtualAccount: VirtualAccount | null;
+  borrowerId: string | null;
+}
+
 export interface BorrowerOnboardResponse {
   message: string;
   kybStatus: string;

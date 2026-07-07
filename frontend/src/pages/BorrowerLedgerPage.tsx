@@ -4,10 +4,12 @@ import { AccountHealthCard } from "@/components/borrower/AccountHealthCard";
 import { LedgerTable } from "@/components/borrower/LedgerTable";
 import { useUser } from "@/context/UserContext";
 import { useBorrowerDashboard } from "@/hooks/useBorrowerDashboard";
+import { useBorrowerLedger } from "@/hooks/useBorrowerLedger";
 
 export function BorrowerLedgerPage() {
   const { session } = useUser();
   const { dashboard } = useBorrowerDashboard(session?.borrowerId);
+  const ledgerState = useBorrowerLedger(session?.borrowerId);
 
   return (
     <AppLayout>
@@ -35,12 +37,12 @@ export function BorrowerLedgerPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <aside className="lg:col-span-4 space-y-8">
-            <NotificationFeed />
+            <NotificationFeed entries={ledgerState.entries} loading={ledgerState.loading} />
             <AccountHealthCard score={dashboard?.accountHealth} description="Credit repayment and account standing score." />
           </aside>
 
           <div className="lg:col-span-8">
-            <LedgerTable />
+            <LedgerTable {...ledgerState} />
           </div>
         </div>
       </main>

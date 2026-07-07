@@ -15,7 +15,7 @@ function totalRepaid(loans: LoanApplication[]): number {
 }
 
 function formatUSD(n: number): string {
-  return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "₦" + n.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const GRADE_COLORS: Record<string, string> = {

@@ -13,16 +13,22 @@ export function BorrowerDashboardPage() {
         <LoanSummaryCard />
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-gutter">
-          <RepaymentChart />
+          <div className="md:col-span-8">
+            <RepaymentChart />
+          </div>
 
           <aside className="md:col-span-4 flex flex-col gap-gutter">
             <AutoRepayCard />
             <CreditAvailableCard />
           </aside>
 
-          <RepaymentSchedule />
+          <div className="md:col-span-4">
+            <RepaymentSchedule />
+          </div>
 
-          <ActiveLoansTable />
+          <div className="md:col-span-8">
+            <ActiveLoansTable />
+          </div>
         </div>
       </main>
     </AppLayout>
