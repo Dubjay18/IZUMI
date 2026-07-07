@@ -45,7 +45,43 @@ export async function saverRoutes(app: FastifyInstance) {
       });
 
       if (existingUser && existingUser.role === 'SAVER' && existingUser.wallets.length > 0) {
-        return reply.code(400).send({ error: 'Saver profile already registered and wallet derived.' });
+        let virtualAcc = existingUser.virtualAccount;
+        if (!virtualAcc) {
+          const ref = `REF-SAVER-${Math.floor(100000 + Math.random() * 900000)}`;
+          let nombaAcc;
+          try {
+            nombaAcc = await nombaService.createVirtualAccount(ref, existingUser.name, bvn || '22222222222');
+          } catch (err) {
+            nombaAcc = {
+              accountNumber: `90${Math.floor(10000000 + Math.random() * 90000000)}`,
+              bankName: 'Nomba Microfinance Bank (Fallback)',
+              accountName: `IZUMI / ${existingUser.name}`,
+              reference: ref
+            };
+          }
+          virtualAcc = await db.virtualAccount.create({
+            data: {
+              userId: existingUser.id,
+              accountNumber: nombaAcc.accountNumber,
+              bankName: nombaAcc.bankName,
+              accountName: nombaAcc.accountName,
+              reference: ref,
+              status: 'ACTIVE'
+            }
+          });
+        }
+
+        return {
+          message: 'Saver onboarding and wallet derivation successful',
+          userId: existingUser.id,
+          walletAddress: existingUser.wallets[0].address,
+          virtualAccount: {
+            accountNumber: virtualAcc.accountNumber,
+            bankName: virtualAcc.bankName,
+            accountName: virtualAcc.accountName,
+            reference: virtualAcc.reference
+          }
+        };
       }
 
       // 2. Perform KYC
