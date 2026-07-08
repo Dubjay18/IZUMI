@@ -8,13 +8,22 @@ export async function seedDatabase() {
 
   // 1. Clean up existing demo user to allow rerun
   const existingUser = await db.user.findUnique({
-    where: { email },
-    include: { borrowerProfile: true }
+    where: { email }
   });
 
   if (existingUser) {
     console.log('Cleaning up existing demo user data...');
     await db.user.delete({ where: { id: existingUser.id } });
+  }
+
+  // Clean up any other borrower profile that has the target CAC RC or TIN (cascades user deletion)
+  const duplicateCacBorrower = await db.borrower.findFirst({
+    where: { OR: [ { cacRcNumber: 'RCCJND35' }, { businessTin: '238U28U035' } ] }
+  });
+
+  if (duplicateCacBorrower) {
+    console.log('Cleaning up duplicate CAC/TIN borrower user...');
+    await db.user.delete({ where: { id: duplicateCacBorrower.userId } });
   }
 
   // 2. Create Master User (SAVER + BORROWER attributes)
