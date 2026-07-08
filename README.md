@@ -79,6 +79,31 @@ The frontend is a Material-3 design-inspired React dashboard application facilit
 
 ---
 
+## 👥 Seeded Test Accounts
+
+For ease of testing and evaluation, the database can be seeded with two active test accounts representing the key user profiles:
+
+### 1. 🐖 The Saver (Lionel Messi)
+* **Email**: `jejeniyi7+23@gmail.com`
+* **Role**: `SAVER`
+* **Pre-seeded Activity**: Multiple NGN deposits (totaling $500 equivalent), yield interest payments ($14.55 total yield), and a withdrawal record ($50). Final balance is **$464.55 USD** (fully funded on-chain in the `QuestToken` DeFi vault if Anvil is running).
+* **Use Case**: Log in to view savings portfolios, yield forecasts, community impact metrics (SME jobs funded), and simulate deposits/withdrawals.
+
+### 2. 🏪 The Borrower SME (Gojo Satoru)
+* **Email**: `jejeniyi7+34@gmail.com`
+* **Role**: `BORROWER` (Company: `Gojo Jujutsu Corp`)
+* **Credit Score / Grade**: `820` / `A`
+* **Approved Credit Limit**: `₦5,000,000 NGN`
+* **Pre-seeded Activity**: An active/disbursed loan of `₦600,000 NGN` (₦200,000 NGN partially repaid via daily POS terminal sweeps, backed by an active Quest Bond on-chain), one fully repaid historical loan, one pending request, one rejected request, and terminal logs.
+* **Use Case**: Log in to view credit limits, outstanding balances, repayment schedules, split intensity controls, and to query the **Izumi AI Financial Advisor** (Gemini integration).
+
+To seed these accounts in your database:
+```bash
+npm run seed:accounts
+```
+
+---
+
 ## 🚀 Deployment & Operations
 
 * Refer to the [Stitch AI User Interface Mockups](https://stitch.withgoogle.com/u/1/projects/6024950968604456215?pli=1) to view our frontend dashboard designs.
