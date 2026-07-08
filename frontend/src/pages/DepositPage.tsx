@@ -6,29 +6,35 @@ import { VirtualAccountCard } from "@/components/dashboard/VirtualAccountCard";
 import { useUser } from "@/context/UserContext";
 import { saverApi, vaultApi } from "@/lib/api";
 
+const getMaturityDate = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
 const DURATION_OPTIONS = [
   {
     id: "30",
     label: "SHORT TERM",
     duration: "30 Days",
-    apy: "4.2%",
-    maturityDate: "Oct 24, 2024",
+    apy: "14.25%", // align APY with contract / yield settings
+    get maturityDate() { return getMaturityDate(30); },
   },
   {
     id: "60",
     label: "BALANCED",
     duration: "60 Days",
-    apy: "4.8%",
-    maturityDate: "Nov 23, 2024",
+    apy: "16.50%",
+    get maturityDate() { return getMaturityDate(60); },
   },
   {
     id: "90",
     label: "MAXIMIZED",
     duration: "90 Days",
-    apy: "5.5%",
-    maturityDate: "Dec 23, 2024",
+    apy: "18.75%",
+    get maturityDate() { return getMaturityDate(90); },
   },
-] as const;
+];
 
 export function DepositPage() {
   const [selectedId, setSelectedId] = useState("30");

@@ -30,7 +30,7 @@ const SESSIONS = [
     status: "Expired" as const,
     statusStyle: "bg-surface-container-highest text-on-surface-variant",
     dot: "bg-on-surface-variant",
-    time: "Mar 12, 2024",
+    time: "Jul 1, 2026",
   },
 ];
 

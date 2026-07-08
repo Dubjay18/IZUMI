@@ -45,9 +45,9 @@ const RESERVES = [
 ] as const;
 
 const PARAMS = [
-  { name: "Liquidation Threshold", value: "85.0%", status: "STABLE",  date: "Oct 12, 2024" },
-  { name: "Reserve Factor",        value: "10.0%", status: "OPTIMAL", date: "Oct 10, 2024" },
-  { name: "Max Loan-to-Value",     value: "75.0%", status: "STABLE",  date: "Sept 28, 2024" },
+  { name: "Liquidation Threshold", value: "85.0%", status: "STABLE",  date: "Jul 4, 2026" },
+  { name: "Reserve Factor",        value: "10.0%", status: "OPTIMAL", date: "Jul 2, 2026" },
+  { name: "Max Loan-to-Value",     value: "75.0%", status: "STABLE",  date: "Jun 28, 2026" },
 ] as const;
 
 /* ─── Component ────────────────────────────────────────────────────── */
@@ -287,7 +287,7 @@ export function VaultHealthPage() {
               <div className="relative z-10">
                 <h4 className="font-headline-md text-[20px] mb-2">Quarterly Audit</h4>
                 <p className="text-label-sm opacity-70 mb-4">
-                  Completed Sept 2024 by Sentinel Labs
+                  Completed Jun 2026 by Sentinel Labs
                 </p>
                 <div className="flex items-center gap-2 text-secondary-container">
                   <span
