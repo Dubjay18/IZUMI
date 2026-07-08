@@ -99,7 +99,7 @@ export function Footer() {
                   mail
                 </span>
                 <p className="text-sm font-body opacity-80">
-                  concierge@izumifountain.com
+                  concierge@izumi.finance
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -116,7 +116,7 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="pt-8 border-t border-primary-fixed-dim/10 flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] font-body uppercase tracking-[0.15em] opacity-40">
-          <p>&copy; 2024 Izumi Management Ltd. All Rights Reserved.</p>
+          <p>&copy; 2026 Izumi Management Ltd. All Rights Reserved.</p>
           <div className="flex gap-8">
             <a className="hover:text-white" href="#">
               Privacy Policy

@@ -1,5 +1,5 @@
 import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
-import { foundry, baseSepolia } from 'viem/chains';
+import { foundry, baseSepolia, optimismSepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import crypto from 'crypto';
 import { walletService } from './wallet.service.js';
@@ -79,7 +79,11 @@ export class BlockchainService {
 
   constructor() {
     this.rpcUrl = process.env.RPC_URL || 'http://127.0.0.1:8545';
-    this.chain = process.env.NODE_ENV === 'production' ? baseSepolia : foundry;
+    let chainObj: any = baseSepolia;
+    if (this.rpcUrl.includes('optimism')) {
+      chainObj = optimismSepolia;
+    }
+    this.chain = process.env.NODE_ENV === 'production' ? chainObj : foundry;
     
     const isLocalRpc = this.rpcUrl.includes('127.0.0.1') || this.rpcUrl.includes('localhost');
     const inCloud = process.env.RAILWAY_ENVIRONMENT !== undefined || process.env.NODE_ENV === 'production';
@@ -113,9 +117,9 @@ export class BlockchainService {
         
         // Auto-fund derived wallet with gas if needed
         const balance = await this.publicClient.getBalance({ address: signer.address });
-        if (balance < 50000000000000000n) { // less than 0.05 ETH
+        if (balance < 500000000000000n) { // less than 0.0005 ETH
           console.log(`BlockchainService: Funding address ${signer.address} with gas from hot wallet`);
-          const pk = process.env.HOT_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+          const pk = process.env.HOT_WALLET_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
           const hotAccount = privateKeyToAccount(pk as `0x${string}`);
           const hotWalletClient = createWalletClient({
             account: hotAccount,
@@ -124,7 +128,7 @@ export class BlockchainService {
           });
           const ethHash = await hotWalletClient.sendTransaction({
             to: signer.address,
-            value: 200000000000000000n, // 0.2 ETH
+            value: 2000000000000000n, // 0.002 ETH
             chain: this.chain
           });
           await this.publicClient.waitForTransactionReceipt({ hash: ethHash });
@@ -174,7 +178,7 @@ export class BlockchainService {
       const unlock = await this.txMutex.lock();
       try {
         // Standard local Anvil address 0 private key for testing if not set
-        const pk = process.env.HOT_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+        const pk = process.env.HOT_WALLET_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
         const hotAccount = privateKeyToAccount(pk as `0x${string}`);
         
         const walletClient = createWalletClient({
@@ -284,7 +288,7 @@ export class BlockchainService {
     const borrowerAddress = signer.address;
 
     // 1. Send ETH from hot wallet for gas
-    const pk = process.env.HOT_WALLET_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    const pk = process.env.HOT_WALLET_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
     const hotAccount = privateKeyToAccount(pk as `0x${string}`);
     const walletClient = createWalletClient({
       account: hotAccount,
@@ -292,10 +296,10 @@ export class BlockchainService {
       transport: http(this.rpcUrl)
     });
 
-    console.log(`BlockchainService: Sending 0.2 ETH to borrower ${borrowerAddress} for gas`);
+    console.log(`BlockchainService: Sending 0.002 ETH to borrower ${borrowerAddress} for gas`);
     const ethHash = await walletClient.sendTransaction({
       to: borrowerAddress,
-      value: 200000000000000000n, // 0.2 ETH
+      value: 2000000000000000n, // 0.002 ETH
       chain: this.chain
     });
     await this.publicClient.waitForTransactionReceipt({ hash: ethHash });

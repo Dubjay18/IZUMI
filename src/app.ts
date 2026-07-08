@@ -5,9 +5,20 @@ import { borrowerRoutes } from './routes/borrower.routes.js';
 import { loanRoutes } from './routes/loan.routes.js';
 import { saverRoutes } from './routes/saver.routes.js';
 import { webhookRoutes } from './routes/webhook.routes.js';
+import { seedDatabase } from './seed.js';
 
 export const app = fastify({
   logger: true,
+});
+
+app.post('/dev/seed', async (request, reply) => {
+  try {
+    await seedDatabase();
+    return { success: true, message: 'Database seeded successfully with master demo account (demo@izumi.finance)' };
+  } catch (error) {
+    app.log.error(error);
+    return reply.code(500).send({ error: `Failed to seed database: ${(error as Error).message}` });
+  }
 });
 
 

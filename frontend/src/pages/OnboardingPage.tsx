@@ -618,7 +618,7 @@ export function OnboardingPage() {
 
       <footer className="fixed bottom-0 w-full py-6 px-container-padding flex justify-between items-center text-on-surface-variant/60 font-label-sm bg-background/80 backdrop-blur-sm">
         <div className="flex gap-8">
-          <span>&copy; 2024 Izumi Wealth Management</span>
+          <span>&copy; 2026 Izumi Wealth Management</span>
           <span>GDPR Compliant</span>
           <span>SEC Registered</span>
         </div>
